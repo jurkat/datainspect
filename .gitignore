@@ -119,6 +119,8 @@ ipython_config.py
 
 # project specific
 .mjay
+.vscode/
+*.code-workspace
 
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
 __pypackages__/
