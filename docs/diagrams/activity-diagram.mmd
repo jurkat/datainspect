@@ -1,0 +1,33 @@
+flowchart TB
+    %% Vorbereitung
+    Start([Start]) --> A[Datensatz auswählen]
+    A --> B[Diagrammtyp auswählen]
+    B --> C[Vorschau anzeigen]
+    C --> D[Spalten für Achsen wählen]
+    D --> E{Standardoptionen OK?}
+    
+    %% Kompakte Anpassungsprozesse
+   F[Optionen anpassen] --> G[Visualisierung rendern]
+   J[Weitere Anpassungen] --> G
+   G --> H{Mit Ergebnis zufrieden?}
+   H -->|Nein| J
+ 
+    %% Hauptflussverbindungen
+    E -->|Nein| F
+    E -->|Ja| G
+    H -->|Ja| I[Visualisierung speichern]
+    
+    %% Export-Entscheidung
+    I --> K{Exportieren?}
+    K -->|Ja| L[Export starten]
+    K -->|Nein| Ende([Ende])
+    L --> Ende
+    
+    %% Visuelle Hinweise zur Gruppierung
+    classDef vorbereitung fill:#e1f5fe,stroke:#01579b
+    classDef anpassung fill:#e8f5e9,stroke:#2e7d32
+    classDef abschluss fill:#fff3e0,stroke:#ff6f00
+    
+    class A,B,C,D,E vorbereitung
+    class F,G,H,J anpassung
+    class I,K,L,Ende abschluss

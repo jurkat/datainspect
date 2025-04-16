@@ -1,0 +1,56 @@
+classDiagram
+    direction LR
+    
+    DataSource "1" --> "1" Dataset
+    Dataset "1" --> "*" Column
+    Dataset "1" --> "*" Visualization
+    Project "1" --> "*" DataSource
+    Project "1" --> "*" Dataset
+    Project "1" --> "*" Visualization
+    
+    class DataSource {
+        -sourceType: String
+        -path: String
+        +loadData()
+        +refresh()
+    }
+    
+    class Dataset {
+        -data: DataFrame
+        -columns: Column[]
+        -metadata: Object
+        +filter(criteria)
+        +sort(column, order)
+        +group(columns, agg)
+        +getStats()
+    }
+    
+    class Column {
+        -name: String
+        -dataType: String
+        -stats: Object
+        +convert(type)
+        +handleMissing(strategy)
+    }
+    
+    class Visualization {
+        -chartType: String
+        -title: String
+        -xAxis: String
+        -yAxis: String
+        -colors: String[]
+        -labels: String[]
+        +render()
+        +export(format)
+    }
+    
+    class Project {
+        -name: String
+        -created: Date
+        -modified: Date
+        -dataSources: DataSource[]
+        -datasets: Dataset[]
+        -visualizations: Visualization[]
+        +save()
+        +load()
+    }

@@ -1,0 +1,45 @@
+flowchart TD
+    subgraph Akteure
+        direction LR
+        Student["👤 Student"]
+        Analyst["👤 Daten-/Business-Analyst"]
+    end
+
+    subgraph DataInspect["DataInspect"]
+        direction TB
+        UC1["Daten verwalten"]
+        UC2["Daten importieren"]
+        UC3["Daten vorverarbeiten"]
+        UC4["Statistiken berechnen"]
+        UC5["Visualisierung erstellen"]
+        UC6["Diagramm anpassen"]
+        UC7["Visualisierung exportieren"]
+        UC8["Projekt speichern"]
+    end
+
+    %% Beziehungen zwischen Akteuren und Use Cases
+    Student -- nutzt --> UC1
+    Student -- nutzt --> UC2
+    Student -- nutzt --> UC3
+    Student -- nutzt --> UC4
+    Student -- nutzt --> UC5
+    Student -- nutzt --> UC6
+    Student -- nutzt --> UC7
+    Student -- nutzt --> UC8
+
+    Analyst -- nutzt --> UC1
+    Analyst -- nutzt --> UC2
+    Analyst -- nutzt --> UC3
+    Analyst -- nutzt --> UC4
+    Analyst -- nutzt --> UC5
+    Analyst -- nutzt --> UC6
+    Analyst -- nutzt --> UC7
+    Analyst -- nutzt --> UC8
+
+    %% Beziehungen zwischen Use Cases
+    UC1 --> UC2
+    UC2 --> UC3
+    UC3 --> UC4
+    UC5 --> UC6
+    UC6 --> UC7
+    UC7 --> UC8
