@@ -1,83 +1,191 @@
-"""
-Main window module for the DataInspect application.
-
-Provides the main application window with menus and central widget area.
-"""
-
+"""Main window implementation."""
+import logging
+from typing import Final, Optional
 from PyQt6.QtWidgets import (
-    QMainWindow, 
-    QWidget, 
-    QVBoxLayout, 
-    QLabel, 
-    QStatusBar
+    QMainWindow,
+    QMessageBox,
+    QWidget,
+    QVBoxLayout,
+    QStatusBar,
+    QMenu,
+    QFileDialog
 )
+from PyQt6.QtGui import QAction
 from PyQt6.QtCore import Qt
+from ..config import WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT, WINDOW_TITLE, PROJECT_FILE_EXTENSION
+from ..data.project_store import ProjectStore
+from ..data.models import Project
+from ..exceptions import ProjectError, ProjectNotFoundError
+from .dialogs import NewProjectDialog
 
 class MainWindow(QMainWindow):
-    """Main window of the application."""
+    """Main application window."""
     
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("DataInspect")
-        self.setGeometry(100, 100, 800, 600)
+        self.logger = logging.getLogger(__name__)
+        self.current_project: Optional[Project] = None
+        self.project_actions: list[QAction] = []  # Actions that require an open project
+        self.setup_ui()
+        self.update_actions_state()
         
-        # Setup UI components
-        self._setup_menu_bar()
-        self._setup_status_bar()
-        self._setup_central_widget()
-    
-    def _setup_menu_bar(self):
-        """Setup the application menu bar."""
-        menu_bar = self.menuBar()
+    def setup_ui(self):
+        """Setup the user interface."""
+        self.setWindowTitle(WINDOW_TITLE)
+        self.setMinimumSize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
+        
+        # Setup menu bar
+        self._setup_menu()
+        
+        # Setup status bar
+        self.statusBar = QStatusBar()
+        self.setStatusBar(self.statusBar)
+        
+    def _setup_menu(self):
+        """Setup the menu bar."""
+        menubar = self.menuBar()
         
         # File menu
-        file_menu = menu_bar.addMenu("&Datei")
-        file_menu.addAction("Öffnen...", self._on_open_file)
+        file_menu = menubar.addMenu("&File")
+        
+        new_action = QAction("&New Project...", self)
+        new_action.triggered.connect(self.new_project)
+        file_menu.addAction(new_action)
+        
+        open_action = QAction("&Open Project...", self)
+        open_action.triggered.connect(self.open_project)
+        file_menu.addAction(open_action)
+        
         file_menu.addSeparator()
-        file_menu.addAction("Beenden", self.close)
         
-        # View menu
-        view_menu = menu_bar.addMenu("&Ansicht")
-        view_menu.addAction("Datenansicht", self._on_toggle_data_view)
-        view_menu.addAction("Visualisierungsansicht", self._on_toggle_visualization_view)
-    
-    def _setup_status_bar(self):
-        """Setup the status bar."""
-        self.status_bar = QStatusBar()
-        self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage("Bereit")
-    
-    def _setup_central_widget(self):
-        """Setup the central widget of the main window."""
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
+        close_action = QAction("&Close Project", self)
+        close_action.triggered.connect(self.close_project)
+        file_menu.addAction(close_action)
+        self.project_actions.append(close_action)
         
-        layout = QVBoxLayout(central_widget)
+        file_menu.addSeparator()
         
-        welcome_label = QLabel("Willkommen bei DataInspect - Daten Visualisierung")
-        welcome_label.setStyleSheet("font-size: 18px; font-weight: bold;")
-        welcome_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        save_action = QAction("&Save Project", self)
+        save_action.triggered.connect(self.save_project)
+        file_menu.addAction(save_action)
+        self.project_actions.append(save_action)
         
-        info_label = QLabel("Bitte öffnen Sie eine Datei, um mit der Analyse zu beginnen.")
-        info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        save_as_action = QAction("Save Project &As...", self)
+        save_as_action.triggered.connect(self.save_project_as)
+        file_menu.addAction(save_as_action)
+        self.project_actions.append(save_as_action)
         
-        layout.addStretch()
-        layout.addWidget(welcome_label)
-        layout.addWidget(info_label)
-        layout.addStretch()
-    
-    # Event handlers
-    def _on_open_file(self):
-        """Handle open file action."""
-        self.status_bar.showMessage("Datei öffnen...")
-        # TODO: Implement file opening functionality
-    
-    def _on_toggle_data_view(self):
-        """Toggle data view."""
-        self.status_bar.showMessage("Datenansicht wird angezeigt...")
-        # TODO: Implement view toggling
-    
-    def _on_toggle_visualization_view(self):
-        """Toggle visualization view."""
-        self.status_bar.showMessage("Visualisierungsansicht wird angezeigt...")
-        # TODO: Implement view toggling
+    def update_actions_state(self):
+        """Update the enabled state of actions based on whether a project is open."""
+        has_project = self.current_project is not None
+        for action in self.project_actions:
+            action.setEnabled(has_project)
+        
+        # Update window title to show project name
+        if has_project:
+            self.setWindowTitle(f"{self.current_project.name} - {WINDOW_TITLE}")
+        else:
+            self.setWindowTitle(WINDOW_TITLE)
+            
+    def new_project(self):
+        """Create a new project."""
+        dialog = NewProjectDialog(self)
+        if dialog.exec():
+            name = dialog.get_project_name()
+            self.current_project = ProjectStore.create_new(name)
+            self.statusBar.showMessage(f"Created new project: {name}")
+            self.update_actions_state()
+            
+    def open_project(self):
+        """Open an existing project."""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open Project",
+            "",
+            f"DataInspect Projects (*{PROJECT_FILE_EXTENSION})"
+        )
+        
+        if file_path:
+            try:
+                self.current_project = ProjectStore.load(file_path)
+                self.statusBar.showMessage(f"Opened project: {self.current_project.name}")
+                self.update_actions_state()
+            except (ProjectError, ProjectNotFoundError) as e:
+                QMessageBox.critical(self, "Error", str(e))
+                
+    def close_project(self):
+        """Close the current project."""
+        if not self.current_project:
+            return
+            
+        # Ask for confirmation if project has unsaved changes
+        if self.current_project.has_unsaved_changes():  # You'll need to implement this method
+            reply = QMessageBox.question(
+                self,
+                "Close Project",
+                "Do you want to save the changes before closing?",
+                QMessageBox.StandardButton.Save | 
+                QMessageBox.StandardButton.Discard | 
+                QMessageBox.StandardButton.Cancel
+            )
+            
+            if reply == QMessageBox.StandardButton.Save:
+                if not self.save_project():  # If save was cancelled or failed
+                    return
+            elif reply == QMessageBox.StandardButton.Cancel:
+                return
+        
+        self.current_project = None
+        self.update_actions_state()
+        self.statusBar.showMessage("Project closed")
+                
+    def save_project(self) -> bool:
+        """Save the current project.
+        
+        Returns:
+            bool: True if project was saved successfully, False otherwise
+        """
+        if not self.current_project:
+            QMessageBox.warning(self, "Warning", "No project is currently open")
+            return False
+            
+        if not self.current_project.file_path:
+            return self.save_project_as()
+            
+        try:
+            ProjectStore.save(self.current_project, self.current_project.file_path)
+            self.statusBar.showMessage("Project saved successfully")
+            return True
+        except ProjectError as e:
+            QMessageBox.critical(self, "Error", str(e))
+            return False
+                
+    def save_project_as(self) -> bool:
+        """Save the current project to a new location.
+        
+        Returns:
+            bool: True if project was saved successfully, False otherwise
+        """
+        if not self.current_project:
+            QMessageBox.warning(self, "Warning", "No project is currently open")
+            return False
+            
+        # Use project name as suggested file name
+        suggested_name = self.current_project.name + PROJECT_FILE_EXTENSION
+        
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Project As",
+            suggested_name,
+            f"DataInspect Projects (*{PROJECT_FILE_EXTENSION})"
+        )
+        
+        if file_path:
+            try:
+                ProjectStore.save(self.current_project, file_path)
+                self.statusBar.showMessage("Project saved successfully")
+                return True
+            except ProjectError as e:
+                QMessageBox.critical(self, "Error", str(e))
+                
+        return False
