@@ -118,10 +118,11 @@ class ProjectStore:
             ]
             
             # Create datasets
+            from io import StringIO
             datasets = [
                 Dataset(
                     name=ds["name"],
-                    data=pd.read_json(ds["data"]),
+                    data=pd.read_json(StringIO(ds["data"])),
                     metadata=ds["metadata"],
                     created_at=datetime.fromisoformat(ds["created_at"]),
                     modified_at=datetime.fromisoformat(ds["modified_at"])

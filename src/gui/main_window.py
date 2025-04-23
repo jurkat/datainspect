@@ -38,15 +38,21 @@ class MainWindow(QMainWindow):
         self._setup_menu()
         
         # Setup status bar
-        self.statusBar = QStatusBar()
-        self.setStatusBar(self.statusBar)
+        self.status_bar = QStatusBar()
+        self.setStatusBar(self.status_bar)
         
     def _setup_menu(self):
         """Setup the menu bar."""
         menubar = self.menuBar()
-        
+        if menubar is None:
+            self.logger.error("Failed to create menu bar")
+            return
+            
         # File menu
         file_menu = menubar.addMenu("&File")
+        if file_menu is None:
+            self.logger.error("Failed to create file menu")
+            return
         
         new_action = QAction("&New Project...", self)
         new_action.triggered.connect(self.new_project)
@@ -82,8 +88,12 @@ class MainWindow(QMainWindow):
             action.setEnabled(has_project)
         
         # Update window title to show project name
-        if has_project:
-            self.setWindowTitle(f"{self.current_project.name} - {WINDOW_TITLE}")
+        project_name = None
+        if self.current_project is not None:
+            project_name = getattr(self.current_project, 'name', None)
+            
+        if project_name is not None:
+            self.setWindowTitle(f"{project_name} - {WINDOW_TITLE}")
         else:
             self.setWindowTitle(WINDOW_TITLE)
             
@@ -93,7 +103,7 @@ class MainWindow(QMainWindow):
         if dialog.exec():
             name = dialog.get_project_name()
             self.current_project = ProjectStore.create_new(name)
-            self.statusBar.showMessage(f"Created new project: {name}")
+            self.status_bar.showMessage(f"Created new project: {name}")
             self.update_actions_state()
             
     def open_project(self):
@@ -108,7 +118,10 @@ class MainWindow(QMainWindow):
         if file_path:
             try:
                 self.current_project = ProjectStore.load(file_path)
-                self.statusBar.showMessage(f"Opened project: {self.current_project.name}")
+                if self.current_project and self.current_project.name:
+                    self.status_bar.showMessage(f"Opened project: {self.current_project.name}")
+                else:
+                    self.status_bar.showMessage("Opened project")
                 self.update_actions_state()
             except (ProjectError, ProjectNotFoundError) as e:
                 QMessageBox.critical(self, "Error", str(e))
@@ -137,7 +150,7 @@ class MainWindow(QMainWindow):
         
         self.current_project = None
         self.update_actions_state()
-        self.statusBar.showMessage("Project closed")
+        self.status_bar.showMessage("Project closed")
                 
     def save_project(self) -> bool:
         """Save the current project.
@@ -154,7 +167,7 @@ class MainWindow(QMainWindow):
             
         try:
             ProjectStore.save(self.current_project, self.current_project.file_path)
-            self.statusBar.showMessage("Project saved successfully")
+            self.status_bar.showMessage("Project saved successfully")
             return True
         except ProjectError as e:
             QMessageBox.critical(self, "Error", str(e))
@@ -183,7 +196,7 @@ class MainWindow(QMainWindow):
         if file_path:
             try:
                 ProjectStore.save(self.current_project, file_path)
-                self.statusBar.showMessage("Project saved successfully")
+                self.status_bar.showMessage("Project saved successfully")
                 return True
             except ProjectError as e:
                 QMessageBox.critical(self, "Error", str(e))
