@@ -1,0 +1,32 @@
+{
+    "include": [
+        "src",
+        "tests"
+    ],
+    "exclude": [
+        "**/__pycache__",
+        "**/*.pyc",
+        "venv",
+        ".venv"
+    ],
+    "extraPaths": [
+        "src"
+    ],
+    "ignore": [
+        "src/utils/third_party"
+    ],
+    "typeCheckingMode": "standard",
+    "reportMissingImports": true,
+    "pythonVersion": "3.12",
+    "reportOptionalMemberAccess": true,
+    "reportOptionalCall": true,
+    "reportOptionalIterable": true,
+    "reportOptionalSubscript": true,
+    "reportUnusedCallResult": true,
+    "reportImplicitOverride": "warning",
+    "useLibraryCodeForTypes": true,
+    "strictListInference": true,
+    "strictDictionaryInference": true,
+    "reportMissingTypeStubs": false,
+    "reportPrivateUsage": "warning"
+}

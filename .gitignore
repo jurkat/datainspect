@@ -33,7 +33,8 @@ logs/
 !*.mypy_cache!/
 !*.dmypy!/
 
-
+# Github
+.github/
 
 
 

@@ -4,38 +4,37 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QLabel,
     QLineEdit,
-    QPushButton,
     QDialogButtonBox
 )
 
 class NewProjectDialog(QDialog):
     """Dialog for creating a new project."""
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("New Project")
+        self.setWindowTitle("Neues Projekt")
         self.setup_ui()
-        
+
     def setup_ui(self):
         """Setup the dialog UI."""
         layout = QVBoxLayout()
-        
+
         # Project name input
-        layout.addWidget(QLabel("Project Name:"))
+        layout.addWidget(QLabel("Projektname:"))
         self.name_input = QLineEdit()
         layout.addWidget(self.name_input)
-        
+
         # Buttons
         button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | 
+            QDialogButtonBox.StandardButton.Ok |
             QDialogButtonBox.StandardButton.Cancel
         )
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
+        _ = button_box.accepted.connect(self.accept)
+        _ = button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)
-        
+
         self.setLayout(layout)
-        
+
     def get_project_name(self) -> str:
         """Get the entered project name."""
         return self.name_input.text().strip()
@@ -52,8 +51,8 @@ class RenameProjectDialog(QDialog):
         self.name_input.setText(old_name)
         layout.addWidget(self.name_input)
         button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
+        _ = button_box.accepted.connect(self.accept)
+        _ = button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)
         self.setLayout(layout)
     def get_new_name(self) -> str:
@@ -68,7 +67,7 @@ class ConfirmDeleteDialog(QDialog):
         layout = QVBoxLayout()
         layout.addWidget(QLabel(f"Möchten Sie das Projekt '{project_name}' wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."))
         button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
+        _ = button_box.accepted.connect(self.accept)
+        _ = button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)
         self.setLayout(layout)

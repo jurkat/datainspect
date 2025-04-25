@@ -1,52 +1,57 @@
 """Dialog for creating a new project."""
-from typing import Final
 from PyQt6.QtWidgets import (
     QDialog,
     QVBoxLayout,
-    QFormLayout,
+    QLabel,
     QLineEdit,
     QDialogButtonBox,
-    QWidget
+    QMessageBox
 )
 
 class NewProjectDialog(QDialog):
-    """Dialog for creating a new project."""
+    """Dialog for getting the name of a new project."""
     
-    def __init__(self, parent: QWidget | None = None) -> None:
-        """Initialize the dialog.
-        
-        Args:
-            parent: Parent widget
-        """
+    def __init__(self, parent=None):
+        """Initialize the dialog."""
         super().__init__(parent)
         self.setWindowTitle("Neues Projekt")
         self.setModal(True)
+        self.setup_ui()
         
-        # Create layout
-        layout: Final[QVBoxLayout] = QVBoxLayout(self)
+    def setup_ui(self):
+        """Set up the user interface."""
+        layout = QVBoxLayout(self)
         
-        # Create form layout
-        form_layout: Final[QFormLayout] = QFormLayout()
+        # Project name input
+        layout.addWidget(QLabel("Projektname:"))
+        self.name_input = QLineEdit()
+        self.name_input.setPlaceholderText("Geben Sie einen Projektnamen ein")
+        layout.addWidget(self.name_input)
         
-        # Add project name field
-        self.name_edit: Final[QLineEdit] = QLineEdit()
-        form_layout.addRow("Projektname:", self.name_edit)
-        
-        layout.addLayout(form_layout)
-        
-        # Add buttons
-        button_box: Final[QDialogButtonBox] = QDialogButtonBox(
+        # Buttons
+        button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | 
             QDialogButtonBox.StandardButton.Cancel
         )
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
+        _ = button_box.accepted.connect(self.validate_and_accept)
+        _ = button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)
-    
-    def get_project_name(self) -> str:
-        """Return the entered project name.
         
-        Returns:
-            The project name as string
-        """
-        return self.name_edit.text().strip()
+        # Set minimum size
+        self.setMinimumWidth(300)
+        
+    def validate_and_accept(self):
+        """Validate the input before accepting."""
+        name = self.name_input.text().strip()
+        if not name:
+            _ = QMessageBox.warning(
+                self,
+                "Ungültige Eingabe",
+                "Bitte geben Sie einen Projektnamen ein."
+            )
+            return
+        self.accept()
+        
+    def get_project_name(self) -> str:
+        """Get the entered project name."""
+        return self.name_input.text().strip()
