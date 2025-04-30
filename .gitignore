@@ -25,6 +25,7 @@ htmlcov/
 .datainspect/
 *.dinsp
 data/*
+test_data/
 logs/
 
 # Development tools

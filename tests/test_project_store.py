@@ -24,36 +24,40 @@ class TestProjectStore(unittest.TestCase):
 
         # Create a test project
         now = datetime.now()
+
+        # Create dataset
+        dataset = Dataset(
+            data=pd.DataFrame({'A': [1, 2, 3], 'B': ['a', 'b', 'c']}),
+            metadata={"columns": 2, "rows": 3},
+            created_at=now,
+            modified_at=now
+        )
+
+        # Create visualization
+        visualization = Visualization(
+            name="Test Visualization",
+            chart_type="bar",
+            config={"x_axis": "A", "y_axis": "B"},
+            created_at=now,
+            modified_at=now
+        )
+
+        # Create data source with dataset and visualization
+        data_source = DataSource(
+            name="Test Source",
+            source_type="csv",
+            file_path=Path("test_data.csv"),
+            created_at=now,
+            dataset=dataset,
+            visualizations=[visualization]
+        )
+
+        # Create project with data source
         self.test_project = Project(
             name="Test Project",
             created=now,
             modified=now,
-            data_sources=[
-                DataSource(
-                    name="Test Source",
-                    source_type="csv",
-                    file_path=Path("test_data.csv"),
-                    created_at=now
-                )
-            ],
-            datasets=[
-                Dataset(
-                    name="Test Dataset",
-                    data=pd.DataFrame({'A': [1, 2, 3], 'B': ['a', 'b', 'c']}),
-                    metadata={"columns": 2, "rows": 3},
-                    created_at=now,
-                    modified_at=now
-                )
-            ],
-            visualizations=[
-                Visualization(
-                    name="Test Visualization",
-                    chart_type="bar",
-                    config={"x_axis": "A", "y_axis": "B"},
-                    created_at=now,
-                    modified_at=now
-                )
-            ]
+            data_sources=[data_source]
         )
 
     @override
@@ -70,8 +74,7 @@ class TestProjectStore(unittest.TestCase):
         self.assertIsNotNone(project.created)
         self.assertIsNotNone(project.modified)
         self.assertEqual(project.data_sources, [])
-        self.assertEqual(project.datasets, [])
-        self.assertEqual(project.visualizations, [])
+        self.assertIsNotNone(project.id)
         self.assertIsNone(project.file_path)
 
     def test_save_and_load_project(self):
@@ -97,12 +100,23 @@ class TestProjectStore(unittest.TestCase):
         self.assertEqual(loaded_project.name, self.test_project.name)
         self.assertEqual(loaded_project.file_path, file_path)
         self.assertEqual(len(loaded_project.data_sources), 1)
-        self.assertEqual(len(loaded_project.datasets), 1)
-        self.assertEqual(len(loaded_project.visualizations), 1)
+
+        # Verify data source content
+        self.assertEqual(loaded_project.data_sources[0].name, self.test_project.data_sources[0].name)
+        self.assertEqual(loaded_project.data_sources[0].source_type, self.test_project.data_sources[0].source_type)
 
         # Verify dataset content
-        pd.testing.assert_frame_equal(loaded_project.datasets[0].data,
-                                      self.test_project.datasets[0].data)
+        self.assertIsNotNone(loaded_project.data_sources[0].dataset)
+        loaded_dataset = loaded_project.data_sources[0].dataset
+        original_dataset = self.test_project.data_sources[0].dataset
+
+        if loaded_dataset and original_dataset:
+            pd.testing.assert_frame_equal(loaded_dataset.data, original_dataset.data)
+
+        # Verify visualization content
+        self.assertEqual(len(loaded_project.data_sources[0].visualizations), 1)
+        self.assertEqual(loaded_project.data_sources[0].visualizations[0].name,
+                        self.test_project.data_sources[0].visualizations[0].name)
 
     def test_load_nonexistent_project(self):
         """Test loading a project that does not exist."""

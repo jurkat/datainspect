@@ -7,11 +7,15 @@ from typing import override
 from src.data.models import Project, DataSource
 from src.utils.observer import Observable
 
-class TestObserver:
-    """Test observer class implementing the update method."""
+class ObserverForTests:
+    """Observer class for testing the Observer pattern."""
 
     def __init__(self):
         """Initialize the test observer."""
+        self.reset()
+
+    def reset(self):
+        """Reset the observer state."""
         self.updated = False
         self.update_count = 0
         self.last_subject = None
@@ -32,7 +36,7 @@ class TestObservableClass(unittest.TestCase):
     def test_add_remove_observer(self):
         """Test adding and removing observers from an Observable."""
         observable = Observable()
-        observer = TestObserver()
+        observer = ObserverForTests()
 
         # Add observer
         observable.add_observer(observer)
@@ -76,11 +80,9 @@ class TestProjectAsObservable(unittest.TestCase):
             name="Test Project",
             created=self.now,
             modified=self.now,
-            data_sources=[],
-            datasets=[],
-            visualizations=[]
+            data_sources=[]
         )
-        self.observer = TestObserver()
+        self.observer = ObserverForTests()
         self.project.add_observer(self.observer)
 
     def test_rename_project(self):

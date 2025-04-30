@@ -6,6 +6,7 @@ all the UI components and manages the application state.
 from typing import Optional, override
 import os
 from pathlib import Path
+from datetime import datetime
 from PyQt6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -14,21 +15,30 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QMessageBox,
     QStackedWidget,
-    QDialog
+    QDialog,
+    QToolBar,
+    QStatusBar
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction, QKeySequence
 
 from src.data.models import Project, DataSource
 from src.data.project_store import ProjectStore
-from src.gui.widgets import StartScreen, ProjectInfoWidget, DataSourceView
+from src.data.importers.csv_importer import CSVImporter
+from src.gui.widgets import (
+    StartScreen, ProjectInfoWidget, DataSourceView,
+    MainContentWidget
+)
 from src.gui.dialogs.new_project_dialog import NewProjectDialog
+from src.gui.dialogs.csv_import_with_transform_dialog import CSVImportDialogWithTransformation
 from src.config import (
     PROJECT_FILE_EXTENSION, WINDOW_TITLE,
     WINDOW_DEFAULT_WIDTH, WINDOW_DEFAULT_HEIGHT,
-    WINDOW_PROJECT_WIDTH, LEFT_PANEL_WIDTH
+    WINDOW_PROJECT_WIDTH, LEFT_PANEL_WIDTH,
+    UI_COLORS
 )
 from src.gui.dialogs import RenameProjectDialog  # This class already exists
+from src.gui.styles import BASE_STYLE
 
 
 class MainWindow(QMainWindow):
@@ -41,6 +51,10 @@ class MainWindow(QMainWindow):
         # Window properties
         self.setWindowTitle(WINDOW_TITLE)
         self.resize(WINDOW_DEFAULT_WIDTH, WINDOW_DEFAULT_HEIGHT)
+        self.setMinimumSize(800, 600)  # Minimum window size
+
+        # Apply application-wide style
+        self.setStyleSheet(BASE_STYLE)
 
         # Project management
         self.project_store = ProjectStore()
@@ -49,6 +63,8 @@ class MainWindow(QMainWindow):
 
         # Setup UI components
         self._setup_menu()  # Important: Initialize menu before UI setup
+        self._setup_toolbar()
+        self._setup_statusbar()
         self.setup_ui()
         self.update_actions_state()
 
@@ -78,15 +94,17 @@ class MainWindow(QMainWindow):
         self.project_view = QWidget()
         self.project_layout = QVBoxLayout(self.project_view)
         self.project_layout.setContentsMargins(0, 0, 0, 0)
+        self.project_layout.setSpacing(0)
 
-        # Create splitter
-        self.splitter = QSplitter(Qt.Orientation.Horizontal)
+        # Create main splitter
+        self.main_splitter = QSplitter(Qt.Orientation.Horizontal)
 
-        # Left panel with data sources
+        # Left panel with project info and data sources
         self.left_panel = QWidget()
         self.left_panel.setFixedWidth(LEFT_PANEL_WIDTH)
         self.left_layout = QVBoxLayout(self.left_panel)
         self.left_layout.setContentsMargins(10, 10, 10, 10)
+        self.left_layout.setSpacing(10)
 
         # Project info widget
         self.project_info = ProjectInfoWidget()
@@ -101,34 +119,26 @@ class MainWindow(QMainWindow):
         )
         self.left_layout.addWidget(self.data_source_view)
 
-        # Right panel: Main content area
-        self.right_panel = QWidget()
-        self.right_layout = QVBoxLayout(self.right_panel)
-        self.right_layout.setContentsMargins(10, 10, 10, 10)
-        self.right_panel.setStyleSheet("""
-            QWidget {
-                background-color: transparent;
-            }
-        """)
+        # Center panel: Main content area
+        self.center_panel = QWidget()
+        self.center_layout = QVBoxLayout(self.center_panel)
+        self.center_layout.setContentsMargins(10, 10, 10, 10)
+        self.center_layout.setSpacing(10)
 
-        # Placeholder for content
-        placeholder = QWidget()
-        placeholder.setStyleSheet("""
-            background-color: transparent;
-            border-radius: 8px;
-        """)
-        self.right_layout.addWidget(placeholder)
+        # Main content widget with tabs
+        self.main_content = MainContentWidget()
+        self.center_layout.addWidget(self.main_content)
 
-        # Add panels to splitter
-        self.splitter.addWidget(self.left_panel)
-        self.splitter.addWidget(self.right_panel)
+        # Add panels to main splitter
+        self.main_splitter.addWidget(self.left_panel)
+        self.main_splitter.addWidget(self.center_panel)
 
         # Set initial sizes for the splitter
-        self.splitter.setSizes([280, 1000])
-        self.splitter.setCollapsible(0, False)  # Left panel cannot be collapsed
+        self.main_splitter.setSizes([LEFT_PANEL_WIDTH, 1000])
+        self.main_splitter.setCollapsible(0, False)  # Left panel cannot be collapsed
 
         # Add splitter to project layout
-        self.project_layout.addWidget(self.splitter)
+        self.project_layout.addWidget(self.main_splitter)
 
         # Add widgets to stacked widget
         _ = self.stacked_widget.addWidget(self.start_screen)
@@ -236,7 +246,7 @@ class MainWindow(QMainWindow):
 
     def resize_to_project_size(self) -> None:
         """Resize the window to the project size."""
-        # Fenster auf die Projektbreite vergrößern mit gleichem Seitenverhältnis
+        # Resize window to project width with the same aspect ratio
         current_size = self.size()
         aspect_ratio = current_size.width() / current_size.height()
         new_width = WINDOW_PROJECT_WIDTH
@@ -259,26 +269,25 @@ class MainWindow(QMainWindow):
 
         Args:
             file_path: Optional path to the data source file.
-                       If None, open a file dialog to select a file.
+                       If None or empty string, open a file dialog to select a file.
         """
         if not self.current_project:
             return
 
-        # If no file path provided, open a file dialog
-        if file_path is None:
+        # If no file path provided or empty string, open a file dialog
+        if not file_path:
             file_path, _ = QFileDialog.getOpenFileName(
                 self,
                 "Datenquelle hinzufügen",
                 os.path.expanduser("~/Dokumente"),
-                "Datendateien (*.csv *.xlsx *.xls *.json *.db);;Alle Dateien (*.*)"
+                "CSV-Dateien (*.csv);;Alle Dateien (*.*)"
             )
 
             if not file_path:
                 return
 
         try:
-            # Create and add data source to project
-            # In a real implementation, you would detect the type and parse the file
+            # Get file information
             file_name = os.path.basename(file_path)
             file_ext = os.path.splitext(file_name)[1].lower()
 
@@ -293,23 +302,69 @@ class MainWindow(QMainWindow):
             }
 
             source_type = type_map.get(file_ext, 'Unknown')
+            file_path_obj = Path(file_path)
 
-            # Create data source
-            from datetime import datetime
-            from pathlib import Path
+            # Handle different file types
+            if source_type == 'CSV':
+                # Open CSV import dialog with transformation capabilities
+                dialog = CSVImportDialogWithTransformation(file_path_obj, self)
+                if dialog.exec() != QDialog.DialogCode.Accepted:
+                    return
 
-            data_source = DataSource(
-                name=file_name,
-                source_type=source_type,
-                file_path=Path(file_path),
-                created_at=datetime.now()
-            )
+                # Get import options from dialog
+                import_options = dialog.get_import_options()
 
-            # Add to project
-            self.current_project.add_data_source(data_source)
+                # Get transformed data if available
+                transformed_data = dialog.get_transformed_data()
 
-            # Update project view
-            self.update_project_view()
+                # Import CSV file with transformed data if available
+                data_source, error = CSVImporter.import_file(
+                    file_path_obj,
+                    name=import_options['name'],
+                    delimiter=import_options['delimiter'],
+                    encoding=import_options['encoding'],
+                    has_header=import_options['has_header'],
+                    skip_rows=import_options['skip_rows'],
+                    decimal=import_options['decimal'],
+                    thousands=import_options['thousands'],
+                    transformed_data=transformed_data
+                )
+
+                if error:
+                    _ = QMessageBox.critical(self, "Fehler beim Importieren", error)
+                    return
+
+                if data_source and data_source.dataset:
+                    # Add data source to project
+                    self.current_project.add_data_source(data_source)
+
+                    # Show success message
+                    _ = QMessageBox.information(
+                        self,
+                        "CSV-Import erfolgreich",
+                        f"Die Datei '{file_name}' wurde erfolgreich importiert.\n"
+                        f"Zeilen: {data_source.dataset.metadata.get('rows', 'unbekannt')}\n"
+                        f"Spalten: {data_source.dataset.metadata.get('columns', 'unbekannt')}"
+                    )
+            else:
+                # For other file types, just create a basic DataSource object
+                data_source = DataSource(
+                    name=file_name,
+                    source_type=source_type,
+                    file_path=file_path_obj,
+                    created_at=datetime.now()
+                )
+
+                # Add to project
+                self.current_project.add_data_source(data_source)
+
+                # Show message that actual import is not yet implemented
+                _ = QMessageBox.information(
+                    self,
+                    "Datenquelle hinzugefügt",
+                    f"Die Datenquelle '{file_name}' wurde hinzugefügt.\n"
+                    f"Hinweis: Der Import von {source_type}-Dateien ist noch nicht vollständig implementiert."
+                )
 
             # Save project
             if self.current_project.file_path is not None:
@@ -407,26 +462,27 @@ class MainWindow(QMainWindow):
         Args:
             data_source: The selected data source
         """
-        # This would be implemented in Phase 2
-        # For now, just show a message box
-        _ = QMessageBox.information(
-            self,
-            "Datenquelle ausgewählt",
-            f"Ausgewählte Datenquelle: {data_source.name}\n"
-            f"Typ: {data_source.source_type}\n"
-            f"Speicherort: {data_source.file_path}"
-        )
+        if not self.current_project:
+            return
+
+        # Update the main content widget with the selected data source
+        self.main_content.set_data_source(data_source, self.current_project)
+
+        # Update status bar
+        status_bar = self.statusBar()
+        if status_bar:
+            status_bar.showMessage(f"Datenquelle '{data_source.name}' ausgewählt")
 
     def _setup_menu(self):
         """Setup the menu bar."""
         menubar = self.menuBar()
         if menubar is None:
-            return  # Keine Menüleiste verfügbar
+            return  # No menu bar available
 
         # File menu
         file_menu = menubar.addMenu("&Datei")
         if file_menu is None:
-            return  # Konnte kein Menü erstellen
+            return  # Could not create menu
 
         new_action = QAction("&Neues Projekt...", self)
         new_action.setShortcut(QKeySequence.StandardKey.New)
@@ -474,6 +530,52 @@ class MainWindow(QMainWindow):
         _ = exit_action.triggered.connect(self.close)
         _ = file_menu.addAction(exit_action)
 
+    def _setup_toolbar(self) -> None:
+        """Set up the toolbar."""
+        toolbar = QToolBar("Hauptwerkzeugleiste")
+        toolbar.setMovable(False)
+        # Verwende direkt QSize statt Qt.SizeHint.size
+        from PyQt6.QtCore import QSize
+        toolbar.setIconSize(QSize(24, 24))
+        toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+
+        # Add actions to toolbar
+        new_action = QAction("Neues Projekt", self)
+        new_action.setStatusTip("Erstellt ein neues Projekt")
+        _ = new_action.triggered.connect(self.on_new_project)
+        _ = toolbar.addAction(new_action)
+
+        open_action = QAction("Projekt öffnen", self)
+        open_action.setStatusTip("Öffnet ein bestehendes Projekt")
+        _ = open_action.triggered.connect(self.on_open_project)
+        _ = toolbar.addAction(open_action)
+
+        _ = toolbar.addSeparator()
+
+        add_source_action = QAction("Datenquelle hinzufügen", self)
+        add_source_action.setStatusTip("Fügt eine neue Datenquelle zum Projekt hinzu")
+        # Use empty string instead of None
+        _ = add_source_action.triggered.connect(lambda: self.on_add_data_source(""))
+        _ = toolbar.addAction(add_source_action)
+        self.project_actions.append(add_source_action)
+
+        self.addToolBar(toolbar)
+
+    def _setup_statusbar(self) -> None:
+        """Set up the status bar."""
+        status_bar = QStatusBar()
+        status_bar.setStyleSheet(f"""
+            QStatusBar {{
+                background-color: {UI_COLORS['background_lighter']};
+                color: {UI_COLORS['foreground']};
+                border-top: 1px solid {UI_COLORS['border']};
+            }}
+        """)
+        self.setStatusBar(status_bar)
+
+        # Add permanent widgets to status bar
+        status_bar.showMessage("Bereit")
+
     def update_actions_state(self):
         """Update the enabled state of actions based on whether a project is open."""
         has_project = self.current_project is not None
@@ -483,8 +585,14 @@ class MainWindow(QMainWindow):
         # Update window title to show project name
         if has_project and self.current_project is not None:
             self.setWindowTitle(f"DataInspect - {self.current_project.name}")
+            status_bar = self.statusBar()
+            if status_bar:
+                status_bar.showMessage(f"Projekt '{self.current_project.name}' geöffnet")
         else:
             self.setWindowTitle("DataInspect")
+            status_bar = self.statusBar()
+            if status_bar:
+                status_bar.showMessage("Bereit")
 
     def close_project(self):
         """Close the current project."""

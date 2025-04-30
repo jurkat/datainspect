@@ -1,44 +1,44 @@
 #!/bin/bash
 
-# cleanup.sh - Script für die Code-Bereinigung mit autoflake
-# DataInspect Projekt
-# Erstellt am 24. April 2025
+# cleanup.sh - Script for code cleanup with autoflake
+# DataInspect Project
+# Created on April 24, 2025
 
 set -e
 
-echo "DataInspect Code-Bereinigung startet..."
+echo "DataInspect code cleanup starting..."
 
-# Aktiviere virtuelle Umgebung, falls vorhanden
+# Activate virtual environment if available
 if [ -d "venv" ]; then
-    echo "Aktiviere virtuelle Umgebung..."
+    echo "Activating virtual environment..."
     source venv/bin/activate
     PIP_CMD="pip"
     PYTHON_CMD="python"
 else
-    echo "Warnung: Keine virtuelle Umgebung gefunden. Fahre mit System-Python fort."
+    echo "Warning: No virtual environment found. Continuing with system Python."
     PIP_CMD="pip3"
     PYTHON_CMD="python3"
 fi
 
-# Prüfe, ob autoflake installiert ist
+# Check if autoflake is installed
 if ! $PYTHON_CMD -m autoflake --version &> /dev/null; then
-    echo "autoflake ist nicht installiert. Installiere autoflake..."
-    $PIP_CMD install autoflake || { echo "Fehler: Konnte autoflake nicht installieren."; exit 1; }
+    echo "autoflake is not installed. Installing autoflake..."
+    $PIP_CMD install autoflake || { echo "Error: Could not install autoflake."; exit 1; }
 fi
 
-echo "Entferne ungenutzte Imports..."
+echo "Removing unused imports..."
 $PYTHON_CMD -m autoflake --remove-all-unused-imports --recursive --in-place src tests
 
-echo "Entferne ungenutzte Variablen..."
+echo "Removing unused variables..."
 $PYTHON_CMD -m autoflake --remove-unused-variables --recursive --in-place src tests
 
-echo "Führe Pyright-Analyse durch..."
+echo "Running Pyright analysis..."
 if command -v pyright &> /dev/null; then
-    pyright src tests || { echo "Fehler: Pyright hat Typfehler gefunden."; exit 2; }
+    pyright src tests || { echo "Error: Pyright found type errors."; exit 2; }
 else
-    echo "Warnung: Pyright ist nicht installiert oder nicht im PATH. Überspringe statische Typprüfung."
+    echo "Warning: Pyright is not installed or not in PATH. Skipping static type checking."
 fi
 
-echo "Code-Bereinigung abgeschlossen."
+echo "Code cleanup completed."
 
-# Die virtuelle Umgebung wird nicht deaktiviert, da dies das Skript beenden würde
+# The virtual environment is not deactivated as this would terminate the script

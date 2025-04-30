@@ -4,10 +4,11 @@ import json
 import logging
 from pathlib import Path
 from datetime import datetime
-import pandas as pd
+import uuid
+from typing import Dict, Any
 from ..exceptions import ProjectError, ProjectNotFoundError
 from ..config import PROJECT_FILE_EXTENSION
-from .models import Project, DataSource, Dataset, Visualization
+from src.data.models import Project, DataSource, Dataset, Visualization
 
 logger = logging.getLogger(__name__)
 
@@ -31,38 +32,44 @@ class ProjectStore:
             # Prepare project data for serialization
             project_data = {
                 "name": project.name,
+                "id": project.id,
                 "created": project.created.isoformat(),
                 "modified": datetime.now().isoformat(),
-                "data_sources": [
-                    {
-                        "name": ds.name,
-                        "source_type": ds.source_type,
-                        "file_path": str(ds.file_path),
-                        "created_at": ds.created_at.isoformat()
-                    }
-                    for ds in project.data_sources
-                ],
-                "datasets": [
-                    {
-                        "name": ds.name,
-                        "data": ds.data.to_json(),
-                        "metadata": ds.metadata,
-                        "created_at": ds.created_at.isoformat(),
-                        "modified_at": ds.modified_at.isoformat()
-                    }
-                    for ds in project.datasets
-                ],
-                "visualizations": [
-                    {
-                        "name": v.name,
-                        "chart_type": v.chart_type,
-                        "config": v.config,
-                        "created_at": v.created_at.isoformat(),
-                        "modified_at": v.modified_at.isoformat()
-                    }
-                    for v in project.visualizations
-                ]
+                "data_sources": []
             }
+
+            # Add data sources with their datasets and visualizations
+            for ds in project.data_sources:
+                data_source_data: Dict[str, Any] = {
+                    "id": ds.id,
+                    "name": ds.name,
+                    "source_type": ds.source_type,
+                    "file_path": str(ds.file_path),
+                    "created_at": ds.created_at.isoformat(),
+                    "dataset": None,
+                    "visualizations": []
+                }
+
+                # Add dataset if available
+                if ds.dataset:
+                    data_source_data["dataset"] = ds.dataset.to_json()
+
+                # Add visualizations
+                visualizations_list = data_source_data["visualizations"]
+                if isinstance(visualizations_list, list):
+                    for vis in ds.visualizations:
+                        visualizations_list.append({
+                            "id": vis.id,
+                            "name": vis.name,
+                            "chart_type": vis.chart_type,
+                            "config": vis.config,
+                            "created_at": vis.created_at.isoformat(),
+                            "modified_at": vis.modified_at.isoformat()
+                        })
+
+                data_sources_list = project_data["data_sources"]
+                if isinstance(data_sources_list, list):
+                    data_sources_list.append(data_source_data)
 
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(project_data, f, indent=2)
@@ -76,10 +83,9 @@ class ProjectStore:
         # Use public methods to update the project state
         saved_state = {
             'name': project.name,
+            'id': project.id,
             'modified': project.modified,
             'data_sources': project.data_sources.copy(),  # Create copies of the lists
-            'datasets': project.datasets.copy(),
-            'visualizations': project.visualizations.copy()
         }
         project.set_saved_state(saved_state)
         project.set_collections_modified(False)  # Reset the modification flag after saving
@@ -97,41 +103,73 @@ class ProjectStore:
             with open(file_path, 'r', encoding='utf-8') as f:
                 project_data = json.load(f)
 
-            # Create data sources
-            data_sources = [
-                DataSource(
-                    name=ds["name"],
-                    source_type=ds["source_type"],
-                    file_path=Path(ds["file_path"]),
-                    created_at=datetime.fromisoformat(ds["created_at"])
-                )
-                for ds in project_data["data_sources"]
-            ]
+            # Create data sources with their datasets and visualizations
+            data_sources = []
 
-            # Create datasets
-            from io import StringIO
-            datasets = [
-                Dataset(
-                    name=ds["name"],
-                    data=pd.read_json(StringIO(ds["data"])),
-                    metadata=ds["metadata"],
-                    created_at=datetime.fromisoformat(ds["created_at"]),
-                    modified_at=datetime.fromisoformat(ds["modified_at"])
-                )
-                for ds in project_data["datasets"]
-            ]
+            for ds_data in project_data.get("data_sources", []):
+                # Create visualizations
+                visualizations = []
+                for vis_data in ds_data.get("visualizations", []):
+                    visualization = Visualization(
+                        name=vis_data["name"],
+                        chart_type=vis_data["chart_type"],
+                        config=vis_data["config"],
+                        created_at=datetime.fromisoformat(vis_data["created_at"]),
+                        modified_at=datetime.fromisoformat(vis_data["modified_at"]),
+                        id=vis_data.get("id", str(uuid.uuid4()))
+                    )
+                    visualizations.append(visualization)
 
-            # Create visualizations
-            visualizations = [
-                Visualization(
-                    name=v["name"],
-                    chart_type=v["chart_type"],
-                    config=v["config"],
-                    created_at=datetime.fromisoformat(v["created_at"]),
-                    modified_at=datetime.fromisoformat(v["modified_at"])
+                # Create dataset if available
+                dataset = None
+                if ds_data.get("dataset"):
+                    dataset_data = ds_data["dataset"]
+                    dataset = Dataset.from_json(dataset_data)
+
+                # Create data source
+                data_source = DataSource(
+                    name=ds_data["name"],
+                    source_type=ds_data["source_type"],
+                    file_path=Path(ds_data["file_path"]),
+                    created_at=datetime.fromisoformat(ds_data["created_at"]),
+                    id=ds_data.get("id", str(uuid.uuid4())),
+                    dataset=dataset,
+                    visualizations=visualizations
                 )
-                for v in project_data["visualizations"]
-            ]
+                data_sources.append(data_source)
+
+            # Handle legacy format (pre-restructuring)
+            if "datasets" in project_data or "visualizations" in project_data:
+                logger.warning("Loading project in legacy format. Converting to new format.")
+
+                # Create datasets from legacy format if needed
+                if "datasets" in project_data and data_sources:
+                    for ds_data in project_data["datasets"]:
+                        # Find matching data source based on name convention
+                        ds_name = ds_data["name"]
+                        for ds in data_sources:
+                            if ds_name.startswith(ds.file_path.stem):
+                                # Create dataset
+                                dataset = Dataset.from_json(ds_data)
+                                # Assign to data source if it doesn't already have one
+                                if ds.dataset is None:
+                                    ds.dataset = dataset
+                                break
+
+                # Create visualizations from legacy format if needed
+                if "visualizations" in project_data and data_sources:
+                    for v_data in project_data["visualizations"]:
+                        visualization = Visualization(
+                            name=v_data["name"],
+                            chart_type=v_data["chart_type"],
+                            config=v_data["config"],
+                            created_at=datetime.fromisoformat(v_data["created_at"]),
+                            modified_at=datetime.fromisoformat(v_data["modified_at"]),
+                            id=str(uuid.uuid4())
+                        )
+                        # Assign to first data source as a fallback
+                        if data_sources:
+                            data_sources[0].visualizations.append(visualization)
 
             # Create project
             project = Project(
@@ -139,9 +177,8 @@ class ProjectStore:
                 created=datetime.fromisoformat(project_data["created"]),
                 modified=datetime.fromisoformat(project_data["modified"]),
                 data_sources=data_sources,
-                datasets=datasets,
-                visualizations=visualizations,
-                file_path=file_path
+                file_path=file_path,
+                id=project_data.get("id", str(uuid.uuid4()))
             )
 
             logger.debug(f"Project successfully loaded from {file_path}")
@@ -160,7 +197,5 @@ class ProjectStore:
             created=now,
             modified=now,
             data_sources=[],
-            datasets=[],
-            visualizations=[],
             file_path=None
         )

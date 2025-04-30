@@ -1,5 +1,5 @@
 """Drop zone widgets for the DataInspect application."""
-from typing import Callable, Sequence, override
+from typing import Callable, Sequence, override, Optional
 from PyQt6.QtWidgets import QLabel, QFrame, QVBoxLayout
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
@@ -11,16 +11,23 @@ class DropZone(QFrame):
         self,
         accepted_extensions: Sequence[str],
         drop_hint: str,
-        on_file_dropped: Callable[[str], None]
+        on_file_dropped: Callable[[str], None],
+        on_click: Optional[Callable[[], None]] = None
     ) -> None:
         super().__init__()
         self.accepted_extensions = accepted_extensions
         self.on_file_dropped = on_file_dropped
+        self.on_click = on_click
 
         self._setup_ui(drop_hint)
 
         # Enable drop
         self.setAcceptDrops(True)
+
+        # Make clickable if on_click is provided
+        if self.on_click:
+            self.setCursor(Qt.CursorShape.PointingHandCursor)
+            self.setToolTip("Klicken zum Öffnen des Dateiauswahldialogs")
 
     def _setup_ui(self, drop_hint: str) -> None:
         """Set up the user interface."""
@@ -30,10 +37,11 @@ class DropZone(QFrame):
                 background-color: #252525;
                 border: 2px dashed #404040;
                 border-radius: 8px;
-                min-height: 200px;
+                min-height: 100px;
             }
             QFrame:hover {
                 border-color: #505050;
+                background-color: #2a2a2a;
             }
         """)
 
@@ -44,15 +52,22 @@ class DropZone(QFrame):
             QLabel {
                 color: #808080;
                 font-size: 14px;
-                padding: 20px;
+                padding: 10px;
                 white-space: pre-wrap;
             }
         """)
 
         # Set layout
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setContentsMargins(10, 10, 10, 10)
         layout.addWidget(self.hint_label)
+
+    @override
+    def mousePressEvent(self, a0):
+        """Handle mouse press events to make the drop zone clickable."""
+        if self.on_click:
+            self.on_click()
+        super().mousePressEvent(a0)
 
     @override
     def dragEnterEvent(self, a0: QDragEnterEvent | None) -> None:
