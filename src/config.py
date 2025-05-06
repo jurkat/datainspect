@@ -40,6 +40,7 @@ UI_COLORS: Final[Dict[str, str]] = {
     'button_pressed': '#2a2a2a',
     'tab_active': '#4a86e8',
     'tab_inactive': '#3d3d3d',
+    'selection': '#3a3a3a',
 }
 
 # Data import settings
@@ -54,27 +55,71 @@ VISUALIZATION_TYPES: Final[Dict[str, Dict[str, Any]]] = {
     'bar': {
         'name': 'Balkendiagramm',
         'icon': '📊',
-        'description': 'Vergleicht Werte über verschiedene Kategorien'
+        'description': 'Vergleicht Werte über verschiedene Kategorien',
+        'supports_multiple_y': True
     },
     'line': {
         'name': 'Liniendiagramm',
         'icon': '📈',
-        'description': 'Zeigt Trends über einen Zeitraum oder eine Sequenz'
+        'description': 'Zeigt Trends über einen Zeitraum oder eine Sequenz',
+        'supports_multiple_y': True
     },
     'pie': {
         'name': 'Kreisdiagramm',
         'icon': '🥧',
-        'description': 'Zeigt Anteile am Gesamtwert'
+        'description': 'Zeigt Anteile am Gesamtwert',
+        'supports_multiple_y': False
     },
     'scatter': {
         'name': 'Streudiagramm',
         'icon': '🔵',
-        'description': 'Zeigt Beziehungen zwischen zwei Variablen'
+        'description': 'Zeigt Beziehungen zwischen zwei Variablen',
+        'supports_multiple_y': False
     },
     'heatmap': {
         'name': 'Heatmap',
         'icon': '🔥',
-        'description': 'Visualisiert Daten als farbige Matrix'
+        'description': 'Visualisiert Daten als farbige Matrix',
+        'supports_multiple_y': False
+    }
+}
+
+# Visualization colors
+VISUALIZATION_COLORS: Final[Dict[str, Dict[str, str]]] = {
+    'Grau': {
+        'hell': '#CCCCCC',
+        'mittel': '#999999',
+        'dunkel': '#666666'
+    },
+    'Blau': {
+        'hell': '#A4C2F4',
+        'mittel': '#6D9EEB',
+        'dunkel': '#3D78D6'
+    },
+    'Rot': {
+        'hell': '#F4CCCC',
+        'mittel': '#EA9999',
+        'dunkel': '#E06666'
+    },
+    'Grün': {
+        'hell': '#D9EAD3',
+        'mittel': '#B6D7A8',
+        'dunkel': '#93C47D'
+    },
+    'Gelb': {
+        'hell': '#FFF2CC',
+        'mittel': '#FFE599',
+        'dunkel': '#FFD966'
+    },
+    'Orange': {
+        'hell': '#FCE5CD',
+        'mittel': '#F9CB9C',
+        'dunkel': '#F6B26B'
+    },
+    'Lila': {
+        'hell': '#D9D2E9',
+        'mittel': '#B4A7D6',
+        'dunkel': '#8E7CC3'
     }
 }
 

@@ -412,14 +412,14 @@ class CSVImportDialogWithTransformation(QDialog):
         if preview_df is None:
             return
 
-        # Lade den vollständigen Datensatz für die Statistiken
+        # Lade den vollständigen Datensatz für die Statistiken und für den späteren Import
         self.load_full_dataset()
 
         # Since we've removed tabs, always show the transformed preview
         self.update_transformation_preview()
 
     def load_full_dataset(self) -> None:
-        """Loads the complete dataset for calculating statistics."""
+        """Loads the complete dataset for calculating statistics and for later import."""
         try:
             # Determine header row setting
             header = 0 if self.import_options['has_header'] else None
@@ -1175,7 +1175,7 @@ class CSVImportDialogWithTransformation(QDialog):
 
         # Then apply transformations if we have data
         if self.preview_df is not None:
-            # Apply all transformations
+            # Apply all transformations to the preview data
             self.transformed_df = self.data_transformer.apply_all(self.preview_df)
 
             # Update the preview
@@ -1197,4 +1197,9 @@ class CSVImportDialogWithTransformation(QDialog):
         Returns:
             Die transformierten Daten oder None, wenn keine Transformationen angewendet wurden
         """
+        # Wenn der vollständige Datensatz vorhanden ist, wende die Transformationen darauf an
+        if self.full_df is not None:
+            return self.data_transformer.apply_all(self.full_df)
+
+        # Ansonsten gib die transformierte Vorschau zurück
         return self.transformed_df
