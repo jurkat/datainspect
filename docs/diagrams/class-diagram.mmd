@@ -1,56 +1,65 @@
 classDiagram
     direction LR
-    
-    DataSource "1" --> "1" Dataset
-    Dataset "1" --> "*" Column
-    Dataset "1" --> "*" Visualization
+
     Project "1" --> "*" DataSource
-    Project "1" --> "*" Dataset
-    Project "1" --> "*" Visualization
-    
+    DataSource "1" --> "1" Dataset
+    DataSource "1" --> "*" Visualization
+    Dataset "1" --> "*" Column
+
     class DataSource {
+        -id: String
+        -name: String
         -sourceType: String
-        -path: String
-        +loadData()
-        +refresh()
+        -filePath: Path
+        -createdAt: DateTime
+        +addVisualization(visualization)
+        +removeVisualization(id)
     }
-    
+
     class Dataset {
         -data: DataFrame
         -columns: Column[]
         -metadata: Object
-        +filter(criteria)
-        +sort(column, order)
-        +group(columns, agg)
-        +getStats()
+        -createdAt: DateTime
+        -modifiedAt: DateTime
+        +getColumnByName(name)
+        +getColumnTypes()
+        +generateMetadata()
+        +toJson()
+        +fromJson(jsonData)
     }
-    
+
     class Column {
         -name: String
         -dataType: String
+        -originalType: String
         -stats: Object
-        +convert(type)
-        +handleMissing(strategy)
+        -metadata: Object
+        +fromSeries(name, series)
+        +getSummary()
     }
-    
+
     class Visualization {
-        -chartType: String
-        -title: String
-        -xAxis: String
-        -yAxis: String
-        -colors: String[]
-        -labels: String[]
-        +render()
-        +export(format)
-    }
-    
-    class Project {
+        -id: String
         -name: String
-        -created: Date
-        -modified: Date
+        -chartType: String
+        -config: Object
+        -createdAt: DateTime
+        -modifiedAt: DateTime
+        +render()
+        +toJson()
+        +fromJson(jsonData)
+    }
+
+    class Project {
+        -id: String
+        -name: String
+        -created: DateTime
+        -modified: DateTime
         -dataSources: DataSource[]
-        -datasets: Dataset[]
-        -visualizations: Visualization[]
-        +save()
-        +load()
+        -filePath: Path
+        +addDataSource(dataSource)
+        +removeDataSource(dataSource)
+        +hasUnsavedChanges()
+        +markAsSaved(state)
     }

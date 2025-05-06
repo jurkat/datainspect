@@ -6,26 +6,32 @@ Das Datenmodell von DataInspect besteht aus mehreren Kernkomponenten, die die St
 ### Geschäftsobjekte
 1. **DataSource**
    - Repräsentiert eine Datenquelle wie eine CSV-, Excel- oder JSON-Datei
-   - Speichert Metainformationen wie den Quellentyp und Importzeitpunkt
+   - Speichert Metainformationen wie den Quellentyp, Importzeitpunkt und eine eindeutige ID
+   - Ist hierarchisch übergeordnet zu genau einem Dataset und mehreren Visualizations
    - Verwaltet die Rohdaten und bietet Methoden zum Laden und Aktualisieren
 2. **Dataset**
    - Stellt einen verarbeiteten Datensatz dar, der aus einer DataSource abgeleitet wurde
    - Enthält die tatsächlichen Daten in einem strukturierten Format
+   - Besteht aus einer Sammlung von Column-Objekten, die die einzelnen Spalten repräsentieren
    - Unterstützt Operationen wie Filtern, Sortieren und Gruppieren
-   - Berechnet statistische Kennzahlen für numerische Spalten
+   - Berechnet statistische Kennzahlen für die enthaltenen Spalten
 3. **Column**
    - Repräsentiert eine einzelne Spalte/Variable in einem Dataset
    - Speichert Metadaten wie Name, Datentyp und statistische Informationen
+   - Erkennt automatisch den Datentyp (numerisch, Text, Datum, kategorisch)
+   - Berechnet statistische Kennzahlen wie Min, Max, Mittelwert, Median, Standardabweichung
    - Bietet Methoden zur Datentypkonvertierung und zum Umgang mit fehlenden Werten
 4. **Visualization**
    - Repräsentiert ein einzelnes Diagramm oder eine Visualisierung
-   - Ist mit einem Dataset verknüpft und definiert, welche Spalten visualisiert werden
+   - Ist mit einer DataSource verknüpft und definiert, welche Spalten visualisiert werden
+   - Besitzt eine eindeutige ID zur programmatischen Ansteuerung
    - Speichert Konfigurationen wie Diagrammtyp, Farben, Beschriftungen und Achseneinstellungen
 5. **Project**
    - Repräsentiert ein Projekt in der Anwendung
-   - Enthält DataSources, Datasets und Visualizations
-   - Speichert Projektmetadaten wie Name, Erstellungsdatum und letzte Änderung
+   - Enthält eine Liste von DataSources, wobei jede DataSource genau ein Dataset und mehrere Visualizations enthält
+   - Speichert Projektmetadaten wie Name, Erstellungsdatum, letzte Änderung und eine eindeutige ID
    - Ermöglicht das Speichern und Laden des gesamten Projektstatus
+   - Verfolgt Änderungen am Projekt, um ungespeicherte Änderungen zu erkennen
 
 ---
 
@@ -36,59 +42,68 @@ Das Datenmodell von DataInspect besteht aus mehreren Kernkomponenten, die die St
 ```mermaid
 classDiagram
     direction LR
-    
-    DataSource "1" --> "1" Dataset
-    Dataset "1" --> "*" Column
-    Dataset "1" --> "*" Visualization
+
     Project "1" --> "*" DataSource
-    Project "1" --> "*" Dataset
-    Project "1" --> "*" Visualization
-    
+    DataSource "1" --> "1" Dataset
+    DataSource "1" --> "*" Visualization
+    Dataset "1" --> "*" Column
+
     class DataSource {
+        -id: String
+        -name: String
         -sourceType: String
-        -path: String
-        +loadData()
-        +refresh()
+        -filePath: Path
+        -createdAt: DateTime
+        +addVisualization(visualization)
+        +removeVisualization(id)
     }
-    
+
     class Dataset {
         -data: DataFrame
         -columns: Column[]
         -metadata: Object
-        +filter(criteria)
-        +sort(column, order)
-        +group(columns, agg)
-        +getStats()
+        -createdAt: DateTime
+        -modifiedAt: DateTime
+        +getColumnByName(name)
+        +getColumnTypes()
+        +generateMetadata()
+        +toJson()
+        +fromJson(jsonData)
     }
-    
+
     class Column {
         -name: String
         -dataType: String
+        -originalType: String
         -stats: Object
-        +convert(type)
-        +handleMissing(strategy)
+        -metadata: Object
+        +fromSeries(name, series)
+        +getSummary()
     }
-    
+
     class Visualization {
-        -chartType: String
-        -title: String
-        -xAxis: String
-        -yAxis: String
-        -colors: String[]
-        -labels: String[]
-        +render()
-        +export(format)
-    }
-    
-    class Project {
+        -id: String
         -name: String
-        -created: Date
-        -modified: Date
+        -chartType: String
+        -config: Object
+        -createdAt: DateTime
+        -modifiedAt: DateTime
+        +render()
+        +toJson()
+        +fromJson(jsonData)
+    }
+
+    class Project {
+        -id: String
+        -name: String
+        -created: DateTime
+        -modified: DateTime
         -dataSources: DataSource[]
-        -datasets: Dataset[]
-        -visualizations: Visualization[]
-        +save()
-        +load()
+        -filePath: Path
+        +addDataSource(dataSource)
+        +removeDataSource(dataSource)
+        +hasUnsavedChanges()
+        +markAsSaved(state)
     }
 ```
 
@@ -101,28 +116,40 @@ DataInspect unterstützt verschiedene Geschäftsprozesse, die zusammen den Workf
 
 ### Hauptprozesse
 1. **Datenimport-Prozess**
-   - Der Nutzer wählt eine Datenquelle aus (Datei auswählen oder Datenbankverbindung herstellen)
+   - Der Nutzer wählt eine CSV-Datenquelle aus
    - Das System überprüft die Datenquelle auf Gültigkeit und Format
    - Das System liest die Daten ein und zeigt eine Vorschau an
-   - Der Nutzer kann Importoptionen anpassen (z.B. Trennzeichen bei CSV-Dateien)
+   - Der Nutzer kann Importoptionen anpassen (z.B. Trennzeichen, Encoding)
+   - Der Nutzer kann Transformationen auf die Daten anwenden
    - Das System erstellt ein Dataset aus der Datenquelle
    - Der Nutzer kann den importierten Datensatz in der Anwendung verwenden
+
+   *(Geplante Funktionalitäten)*
+   - Import von Excel- und JSON-Dateien
+   - Datenbankverbindungen für direkten Datenimport
 2. **Datenvorverarbeitungs-Prozess**
    - Der Nutzer wählt einen Datensatz aus
    - Das System zeigt die verfügbaren Daten in tabellarischer Form an
+   - Der Nutzer kann Transformationen auf die Daten anwenden
+   - Das System führt die Transformationen aus und zeigt das Ergebnis an
+
+   *(Geplante Funktionalitäten)*
    - Der Nutzer kann Operationen wie Filtern, Sortieren oder Gruppieren auswählen
-   - Das System führt die Operation aus und zeigt das Ergebnis an
+   - Das System führt diese Operationen aus und zeigt das Ergebnis an
    - Der Nutzer kann mehrere Operationen nacheinander ausführen
    - Der Nutzer kann den verarbeiteten Datensatz für Visualisierungen verwenden
 3. **Visualisierungserstellungs-Prozess**
-   - Der Nutzer wählt einen Datensatz aus
+   - Der Nutzer wählt eine Datenquelle aus
    - Der Nutzer wählt einen Diagrammtyp aus einer Liste verfügbarer Visualisierungen
    - Das System zeigt eine Vorschau der Standardvisualisierung
    - Der Nutzer wählt Spalten für die relevanten Achsen/Dimensionen aus
    - Der Nutzer passt Visualisierungsoptionen an (Farben, Titel, Beschriftungen)
    - Das System rendert die angepasste Visualisierung
+   - Die Visualisierung wird der ausgewählten Datenquelle zugeordnet
+
+   *(Geplante Funktionalitäten)*
    - Der Nutzer kann mit der Visualisierung interagieren (zoomen, filtern, usw.)
-4. **Export-Prozess**
+4. **Export-Prozess** *(geplante Funktionalität)*
    - Der Nutzer wählt eine fertige Visualisierung aus
    - Der Nutzer wählt das gewünschte Exportformat (PNG, JPEG, PDF)
    - Der Nutzer passt ggf. Exportoptionen an (Auflösung, Qualität)
@@ -144,34 +171,34 @@ DataInspect unterstützt verschiedene Geschäftsprozesse, die zusammen den Workf
 ```mermaid
 flowchart TB
     %% Vorbereitung
-    Start([Start]) --> A[Datensatz auswählen]
+    Start([Start]) --> A[Datenquelle auswählen]
     A --> B[Diagrammtyp auswählen]
     B --> C[Vorschau anzeigen]
     C --> D[Spalten für Achsen wählen]
     D --> E{Standardoptionen OK?}
-    
+
     %% Kompakte Anpassungsprozesse
    F[Optionen anpassen] --> G[Visualisierung rendern]
    J[Weitere Anpassungen] --> G
    G --> H{Mit Ergebnis zufrieden?}
    H -->|Nein| J
- 
+
     %% Hauptflussverbindungen
     E -->|Nein| F
     E -->|Ja| G
     H -->|Ja| I[Visualisierung speichern]
-    
+
     %% Export-Entscheidung
     I --> K{Exportieren?}
     K -->|Ja| L[Export starten]
     K -->|Nein| Ende([Ende])
     L --> Ende
-    
+
     %% Visuelle Hinweise zur Gruppierung
     classDef vorbereitung fill:#e1f5fe,stroke:#01579b
     classDef anpassung fill:#e8f5e9,stroke:#2e7d32
     classDef abschluss fill:#fff3e0,stroke:#ff6f00
-    
+
     class A,B,C,D,E vorbereitung
     class F,G,H,J anpassung
     class I,K,L,Ende abschluss
@@ -186,13 +213,18 @@ Für DataInspect gelten folgende Geschäftsregeln, die für die korrekte Funktio
 
 ### Datenquellen und Datensätze
 - Eine Datenquelle muss mindestens eine Spalte und eine Zeile enthalten
+- Jede Datenquelle muss eine eindeutige ID haben
+- Jede Datenquelle ist mit genau einem Dataset verknüpft (1:1-Beziehung)
 - Jede Spalte muss einen eindeutigen Namen haben
 - Datentypen müssen konsistent innerhalb einer Spalte sein oder konvertierbar sein
 - Fehlende Werte müssen gekennzeichnet sein (z.B. durch NULL, NA, leere Zelle)
 - Die maximale Größe einer importierbaren Datei ist auf 100 MB begrenzt
+- Nach dem Import wird ausschließlich mit den transformierten Daten gearbeitet, ohne Aktualisierungsmöglichkeit zur Originaldatenquelle
 
 ### Visualisierungen
-- Jede Visualisierung muss mit genau einem Datensatz verknüpft sein
+- Jede Visualisierung muss mit genau einer DataSource verknüpft sein
+- Jede Visualisierung muss eine eindeutige ID haben
+- Visualisierungen sind hierarchisch der DataSource untergeordnet (1:n-Beziehung)
 - Balken- und Liniendiagramme benötigen mindestens eine X-Achsen- und eine Y-Achsen-Spalte
 - Kreisdiagramme benötigen eine Kategorie-Spalte und eine Werte-Spalte
 - Streudiagramme benötigen zwei numerische Spalten (X und Y)
@@ -200,20 +232,24 @@ Für DataInspect gelten folgende Geschäftsregeln, die für die korrekte Funktio
 - Der Abstand von Werten auf den Achsen muss proportional zu den tatsächlichen Werten sein
 
 ### Datenbearbeitung
+- Transformationen müssen den Datentyp einer Spalte respektieren oder eine explizite Typkonvertierung durchführen
+- Statistische Berechnungen sind nur für numerische Spalten zulässig
+
+*(Geplante Funktionalitäten)*
 - Bei der Datenfilterung müssen alle anzuwendenden Filterbedingungen gültig sein
 - Bei der Datensortierung muss mindestens eine Spalte als Sortierkriterium angegeben werden
 - Bei der Datengruppierung müssen Aggregationsfunktionen für numerische Spalten angegeben werden
-- Statistische Berechnungen sind nur für numerische Spalten zulässig
-- Transformationen müssen den Datentyp einer Spalte respektieren oder eine explizite Typkonvertierung durchführen
 
 ### Projekte
-- Jedes Projekt muss einen eindeutigen Namen haben
-- Ein Projekt kann mehrere Datenquellen, Datensätze und Visualisierungen enthalten
+- Jedes Projekt muss einen eindeutigen Namen und eine eindeutige ID haben
+- Ein Projekt enthält eine Liste von DataSources, wobei jede DataSource genau ein Dataset und mehrere Visualizations enthält
+- Die hierarchische Struktur (Project → DataSources → Dataset/Visualizations) muss eingehalten werden
+- Das Projekt verfolgt Änderungen, um ungespeicherte Änderungen zu erkennen
 - Änderungen am Projekt müssen explizit gespeichert werden, um persistiert zu werden
-- Projektdateien müssen ein definiertes Format haben (.dinsp-Dateierweiterung)
+- Projektdateien müssen ein definiertes Format haben (.dinsp-Dateierweiterung) und werden im JSON-Format gespeichert
 - Beim Laden eines Projekts müssen alle referenzierten Datenquellen verfügbar sein
 
-### Export
+### Export *(geplante Funktionalität)*
 - Exportierte Bilddateien müssen mindestens eine Auflösung von 300 dpi haben
 - Bei PDF-Export müssen alle Schriftarten eingebettet werden
 - Die maximale Größe für exportierte Dateien beträgt 50 MB
@@ -224,10 +260,15 @@ Für DataInspect gelten folgende Geschäftsregeln, die für die korrekte Funktio
 DataInspect kommuniziert mit verschiedenen externen Systemen und Datenquellen über definierte Schnittstellen:
 
 1. **Dateisystem**
-   - Zweck: Import von Datendateien, Speichern/Laden von Projekten, Export von Visualisierungen
+   - Zweck: Import von CSV-Datendateien, Speichern/Laden von Projekten
    - Protokoll: Direkte Dateioperationen über das Betriebssystem
-   - Datenformat: CSV, Excel (XLSX/XLS), JSON für Import; projektspezifisches Format (.dinsp) für Projekte; PNG, JPEG, PDF für Export
-2. **SQLite-Datenbanken**
+   - Datenformat: CSV für Import; projektspezifisches Format (.dinsp) für Projekte
+
+   *(Geplante Funktionalitäten)*
+   - Import von Excel (XLSX/XLS) und JSON-Dateien
+   - Export von Visualisierungen als PNG, JPEG, PDF
+
+2. **SQLite-Datenbanken** *(geplante Funktionalität)*
    - Zweck: Zugriff auf strukturierte Daten in lokalen SQLite-Datenbanken
    - Protokoll: SQLite3 API über entsprechende Python-Bibliothek
    - Datenformat: SQL-Abfragen und -Ergebnisse
@@ -270,7 +311,7 @@ Der Diagrammerstellungs-Dialog wird verwendet, um neue Visualisierungen zu erste
 - **Anpassungsoptionen:** Einstellungen für Farben, Beschriftungen, Skalen, etc.
 - **Schaltflächen:** "Erstellen", "Abbrechen"
 
-### Dialog: Exportoptionen
+### Dialog: Exportoptionen *(geplante Funktionalität)*
 Der Export-Dialog ermöglicht die Konfiguration des Exports:
 - **Format-Auswahl:** Auswahl des Exportformats (PNG, JPEG, PDF)
 - **Größeneinstellungen:** Eingabefelder für Breite und Höhe der Ausgabe
@@ -285,7 +326,7 @@ Der Export-Dialog ermöglicht die Konfiguration des Exports:
 Die Hauptdialogflüsse in der Anwendung sind:
 1. **Datenimport-Fluss:** Hauptfenster → Menü "Datei" → "Daten importieren" → Datenimport-Dialog → Dateiauswahl → Importoptionen anpassen → Vorschau prüfen → "Importieren" → Hauptfenster (mit importierten Daten)
 2. **Visualisierungserstellungs-Fluss:** Hauptfenster → Menü "Visualisierung" → "Neue Visualisierung" → Diagrammerstellungs-Dialog → Diagrammtyp auswählen → Spalten zuordnen → Anpassungen vornehmen → "Erstellen" → Hauptfenster (mit neuer Visualisierung)
-3. **Export-Fluss:** Hauptfenster (mit ausgewählter Visualisierung) → Menü "Datei" → "Exportieren" → Exportoptionen-Dialog → Format und Optionen wählen → "Exportieren" → Datei-Browser (zur Speicherortwahl) → Hauptfenster
+3. **Export-Fluss:** *(geplante Funktionalität)* Hauptfenster (mit ausgewählter Visualisierung) → Menü "Datei" → "Exportieren" → Exportoptionen-Dialog → Format und Optionen wählen → "Exportieren" → Datei-Browser (zur Speicherortwahl) → Hauptfenster
 
 ---
 
