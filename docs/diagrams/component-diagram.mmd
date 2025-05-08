@@ -1,0 +1,37 @@
+flowchart TB
+    subgraph UI["Benutzeroberfläche (GUI)"]
+        MainWindow["MainWindow"]
+        Dialogs["Dialoge"]
+        Widgets["Widgets"]
+    end
+    
+    subgraph Models["Datenmodelle"]
+        Project["Project"]
+        DataSource["DataSource"]
+        Dataset["Dataset"]
+        Column["Column"]
+        Visualization["Visualization"]
+    end
+    
+    subgraph Data["Datenverarbeitung"]
+        Importers["Importers"]
+        Transformations["Transformations"]
+        Statistics["Statistics"]
+    end
+    
+    subgraph Visualization["Visualisierung"]
+        ChartRenderers["ChartRenderers"]
+        ColorSchemes["ColorSchemes"]
+        Formatters["Formatters"]
+    end
+    
+    subgraph Storage["Datenspeicherung"]
+        ProjectStore["ProjectStore"]
+        Serialization["Serialization"]
+    end
+    
+    UI <--> Models
+    Models <--> Data
+    Models <--> Visualization
+    Models <--> Storage
+    UI <--> Visualization

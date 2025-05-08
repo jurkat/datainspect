@@ -1,0 +1,44 @@
+sequenceDiagram
+    actor User as Benutzer
+    participant MC as MainContent
+    participant VCD as VisualizationCreationDialog
+    participant CR as ChartRenderer
+    participant CT as ChartTypes
+    participant DS as DataSource
+    participant V as Visualization
+    participant P as Project
+    
+    User->>MC: Klick auf "Visualisierung erstellen"
+    MC->>MC: on_create_visualization()
+    MC->>VCD: Erstelle VisualizationCreationDialog
+    VCD->>VCD: Initialisiere Dialog mit Datenquelle
+    VCD-->>User: Zeige Dialog mit Optionen
+    
+    User->>VCD: Wähle Visualisierungstyp
+    VCD->>VCD: update_chart_type_options()
+    VCD->>VCD: update_preview()
+    
+    User->>VCD: Wähle X-Achse
+    User->>VCD: Wähle Y-Achse(n)
+    VCD->>VCD: update_preview()
+    VCD->>CR: render_preview(dataset, config, chart_type)
+    CR->>CT: Erstelle Chart-Objekt
+    CT->>CT: render()
+    CT-->>CR: Figure
+    CR-->>VCD: Figure
+    VCD-->>User: Zeige Vorschau
+    
+    User->>VCD: Konfiguriere Filter/Transformationen
+    VCD->>VCD: update_preview()
+    VCD->>CR: render_preview(dataset, config, chart_type)
+    CR-->>VCD: Figure
+    VCD-->>User: Zeige aktualisierte Vorschau
+    
+    User->>VCD: Klick auf "Speichern"
+    VCD->>VCD: get_visualization()
+    VCD->>V: Erstelle Visualization
+    VCD-->>MC: Rückgabe der Visualization
+    MC->>DS: add_visualization(visualization)
+    MC->>P: notify_observers()
+    P-->>MC: Aktualisiere UI
+    MC->>User: Zeige erstellte Visualisierung

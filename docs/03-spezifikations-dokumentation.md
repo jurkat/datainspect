@@ -1,113 +1,144 @@
-# Spezifikationsdokument „DataInspect“
+# Spezifikationsdokument „DataInspect"
 
 ## Datenmodell
 Das Datenmodell von DataInspect besteht aus mehreren Kernkomponenten, die die Struktur und Beziehungen der in der Anwendung verwendeten Daten definieren.
 
 ### Geschäftsobjekte
-1. **DataSource**
+1. **Project**
+   - Repräsentiert ein Projekt in der Anwendung
+   - Enthält eine Liste von DataSources, wobei jede DataSource genau ein Dataset und mehrere Visualizations enthält
+   - Speichert Projektmetadaten wie Name, Erstellungsdatum, letzte Änderung und eine eindeutige ID
+   - Implementiert das Observable-Pattern, um Beobachter über Änderungen zu informieren
+   - Verfolgt Änderungen am Projekt, um ungespeicherte Änderungen zu erkennen
+   - Bietet Methoden zum Hinzufügen, Entfernen und Verwalten von DataSources
+   - Ermöglicht den Zugriff auf DataSources und Visualizations über ihre eindeutigen IDs
+2. **DataSource**
    - Repräsentiert eine Datenquelle wie eine CSV-, Excel- oder JSON-Datei
    - Speichert Metainformationen wie den Quellentyp, Importzeitpunkt und eine eindeutige ID
    - Ist hierarchisch übergeordnet zu genau einem Dataset und mehreren Visualizations
    - Verwaltet die Rohdaten und bietet Methoden zum Laden und Aktualisieren
-2. **Dataset**
+   - Bietet Methoden zum Hinzufügen, Entfernen und Abrufen von Visualizations
+3. **Dataset**
    - Stellt einen verarbeiteten Datensatz dar, der aus einer DataSource abgeleitet wurde
-   - Enthält die tatsächlichen Daten in einem strukturierten Format
+   - Enthält die tatsächlichen Daten in einem strukturierten Format (Pandas DataFrame)
    - Besteht aus einer Sammlung von Column-Objekten, die die einzelnen Spalten repräsentieren
    - Unterstützt Operationen wie Filtern, Sortieren und Gruppieren
    - Berechnet statistische Kennzahlen für die enthaltenen Spalten
-3. **Column**
+   - Speichert Metadaten wie Erstellungs- und Änderungszeitpunkt
+4. **Column**
    - Repräsentiert eine einzelne Spalte/Variable in einem Dataset
    - Speichert Metadaten wie Name, Datentyp und statistische Informationen
    - Erkennt automatisch den Datentyp (numerisch, Text, Datum, kategorisch)
    - Berechnet statistische Kennzahlen wie Min, Max, Mittelwert, Median, Standardabweichung
    - Bietet Methoden zur Datentypkonvertierung und zum Umgang mit fehlenden Werten
-4. **Visualization**
+5. **Visualization**
    - Repräsentiert ein einzelnes Diagramm oder eine Visualisierung
    - Ist mit einer DataSource verknüpft und definiert, welche Spalten visualisiert werden
    - Besitzt eine eindeutige ID zur programmatischen Ansteuerung
    - Speichert Konfigurationen wie Diagrammtyp, Farben, Beschriftungen und Achseneinstellungen
-5. **Project**
-   - Repräsentiert ein Projekt in der Anwendung
-   - Enthält eine Liste von DataSources, wobei jede DataSource genau ein Dataset und mehrere Visualizations enthält
-   - Speichert Projektmetadaten wie Name, Erstellungsdatum, letzte Änderung und eine eindeutige ID
-   - Ermöglicht das Speichern und Laden des gesamten Projektstatus
-   - Verfolgt Änderungen am Projekt, um ungespeicherte Änderungen zu erkennen
+   - Verfolgt Erstellungs- und Änderungszeitpunkte
 
 ---
 
 ## UML-Klassendiagramm
 
-<div align="center">
-
 ```mermaid
 classDiagram
-    direction LR
-
-    Project "1" --> "*" DataSource
-    DataSource "1" --> "1" Dataset
-    DataSource "1" --> "*" Visualization
-    Dataset "1" --> "*" Column
+    class Project {
+        +String name
+        +DateTime created
+        +DateTime modified
+        +List~DataSource~ data_sources
+        +Path file_path
+        +String id
+        +Dict _last_saved_state
+        +bool _collections_modified
+        +bool has_unsaved_changes
+        +add_data_source(DataSource)
+        +remove_data_source(DataSource)
+        +clear_data_sources()
+        +get_data_source_by_id(String)
+        +get_visualization_by_id(String)
+        +notify_observers()
+    }
 
     class DataSource {
-        -id: String
-        -name: String
-        -sourceType: String
-        -filePath: Path
-        -createdAt: DateTime
-        +addVisualization(visualization)
-        +removeVisualization(id)
+        +String name
+        +String source_type
+        +Path file_path
+        +DateTime created_at
+        +String id
+        +Dataset dataset
+        +List~Visualization~ visualizations
+        +add_visualization(Visualization)
+        +remove_visualization(String)
+        +get_visualization_by_id(String)
     }
 
     class Dataset {
-        -data: DataFrame
-        -columns: Column[]
-        -metadata: Object
-        -createdAt: DateTime
-        -modifiedAt: DateTime
-        +getColumnByName(name)
-        +getColumnTypes()
-        +generateMetadata()
-        +toJson()
-        +fromJson(jsonData)
+        +DataFrame data
+        +Dict metadata
+        +List~Column~ columns
+        +get_column(name)
+        +add_column(Column)
+        +remove_column(name)
     }
 
     class Column {
-        -name: String
-        -dataType: String
-        -originalType: String
-        -stats: Object
-        -metadata: Object
-        +fromSeries(name, series)
-        +getSummary()
+        +String name
+        +String data_type
+        +String original_type
+        +Dict stats
+        +Dict metadata
+        +from_series(name, series)
+        +get_summary()
     }
 
     class Visualization {
-        -id: String
-        -name: String
-        -chartType: String
-        -config: Object
-        -createdAt: DateTime
-        -modifiedAt: DateTime
+        +String name
+        +String chart_type
+        +Dict config
+        +DateTime created_at
+        +DateTime modified_at
+        +String id
         +render()
-        +toJson()
-        +fromJson(jsonData)
+        +update_config(config)
     }
 
-    class Project {
-        -id: String
-        -name: String
-        -created: DateTime
-        -modified: DateTime
-        -dataSources: DataSource[]
-        -filePath: Path
-        +addDataSource(dataSource)
-        +removeDataSource(dataSource)
-        +hasUnsavedChanges()
-        +markAsSaved(state)
+    class Observable {
+        <<interface>>
+        +add_observer(Observer)
+        +remove_observer(Observer)
+        +notify_observers()
     }
+
+    class Observer {
+        <<interface>>
+        +update(Observable)
+    }
+
+    class CSVImporter {
+        +import_file(file_path, options)
+        +generate_preview(file_path, options)
+    }
+
+    class DataTransformation {
+        +apply(data, params)
+        +validate(params)
+    }
+
+    Project --|> Observable
+    Project "1" o-- "*" DataSource
+    DataSource "1" o-- "1" Dataset
+    DataSource "1" o-- "*" Visualization
+    Dataset "1" o-- "*" Column
+    CSVImporter --> DataSource : creates
+    DataTransformation --> Dataset : modifies
 ```
 
-</div>
+**Abbildung 1:** UML-Klassendiagramm der Hauptkomponenten von DataInspect. Das Diagramm zeigt die zentralen Klassen und ihre Beziehungen. Die Klasse `Project` ist das Hauptobjekt, das mehrere `DataSource`-Objekte enthält. Jede `DataSource` hat genau ein `Dataset` und kann mehrere `Visualization`-Objekte haben. Das `Dataset` besteht aus mehreren `Column`-Objekten. Die Klassen `CSVImporter` und `DataTransformation` sind Hilfsklassen für den Import und die Transformation von Daten. Das Observer-Pattern wird durch die Interfaces `Observable` und `Observer` implementiert.
+
+*Erstellt mit: Mermaid.js Diagramming Tool (Version 9.4.3)*
 
 ---
 
@@ -164,47 +195,128 @@ DataInspect unterstützt verschiedene Geschäftsprozesse, die zusammen den Workf
 
 ---
 
-## UML-Aktivitätsdiagramm für den Visualisierungserstellungs-Prozess
-
-<div align="center">
+## UML-Aktivitätsdiagramm: Datenimport und Visualisierung
 
 ```mermaid
-flowchart TB
-    %% Vorbereitung
+flowchart TD
     Start([Start]) --> A[Datenquelle auswählen]
-    A --> B[Diagrammtyp auswählen]
-    B --> C[Vorschau anzeigen]
-    C --> D[Spalten für Achsen wählen]
-    D --> E{Standardoptionen OK?}
+    A --> C[CSV-Datei auswählen]
+    C --> E[Importoptionen konfigurieren]
+    E --> F[Vorschau generieren]
+    F --> G{Vorschau OK?}
+    G -->|Nein| E
+    G -->|Ja| H[Daten importieren]
 
-    %% Kompakte Anpassungsprozesse
-   F[Optionen anpassen] --> G[Visualisierung rendern]
-   J[Weitere Anpassungen] --> G
-   G --> H{Mit Ergebnis zufrieden?}
-   H -->|Nein| J
+    H --> J[Visualisierungstyp auswählen]
+    J --> K[Visualisierungsparameter konfigurieren]
+    K --> I[Daten filtern/transformieren]
+    I --> L[Vorschau wird automatisch aktualisiert]
+    L --> M{Ergebnis OK?}
+    M -->|Nein| K
+    M -->|Ja| N[Visualisierung speichern]
+    N --> O[Visualisierung anzeigen]
+    O --> Ende([Ende])
 
-    %% Hauptflussverbindungen
-    E -->|Nein| F
-    E -->|Ja| G
-    H -->|Ja| I[Visualisierung speichern]
-
-    %% Export-Entscheidung
-    I --> K{Exportieren?}
-    K -->|Ja| L[Export starten]
-    K -->|Nein| Ende([Ende])
-    L --> Ende
-
-    %% Visuelle Hinweise zur Gruppierung
+    %% Visuelle Hinweise zur Gruppierung mit Farben aus dem Screenshot
     classDef vorbereitung fill:#e1f5fe,stroke:#01579b
     classDef anpassung fill:#e8f5e9,stroke:#2e7d32
     classDef abschluss fill:#fff3e0,stroke:#ff6f00
 
-    class A,B,C,D,E vorbereitung
-    class F,G,H,J anpassung
-    class I,K,L,Ende abschluss
+    class A,C,E,F,G vorbereitung
+    class H,J,K,I,L,M anpassung
+    class N,O,Ende abschluss
 ```
 
-</div>
+**Abbildung 2:** UML-Aktivitätsdiagramm für den Prozess des Datenimports und der Visualisierungserstellung in DataInspect. Der Prozess ist in drei Phasen unterteilt: Vorbereitung (blau), Anpassung (grün) und Abschluss (orange). Der Prozess beginnt mit der Auswahl einer CSV-Datenquelle, gefolgt von der Konfiguration der Importoptionen und der Generierung einer Vorschau. Nach dem Import wird ein Visualisierungstyp ausgewählt und die Visualisierungsparameter konfiguriert. Anschließend können die Daten gefiltert und transformiert werden, wobei die Vorschau automatisch aktualisiert wird. Nach der Überprüfung des Ergebnisses kann die Visualisierung gespeichert und angezeigt werden.
+
+*Erstellt mit: Mermaid.js Diagramming Tool (Version 9.4.3)*
+
+---
+
+## Sequenzdiagramm: Datenimport und Transformation
+
+```mermaid
+sequenceDiagram
+    actor User as Benutzer
+    participant UI as Benutzeroberfläche
+    participant Importer as CSVImporter
+    participant DS as DataSource
+    participant DT as DataTransformation
+    participant Dataset as Dataset
+
+    User->>UI: Wählt CSV-Datei aus
+    UI->>Importer: import_file(file_path, options)
+    Importer->>Importer: Datei lesen und validieren
+    Importer->>UI: Vorschau zurückgeben
+    UI->>User: Zeigt Vorschau an
+
+    User->>UI: Bestätigt Import
+    UI->>Importer: import_file(file_path, options, confirm=True)
+    Importer->>DS: Erstellt neue DataSource
+    Importer->>Dataset: Erstellt neues Dataset
+    DS->>Dataset: Verknüpft Dataset
+
+    User->>UI: Wählt Transformation
+    UI->>DT: apply(dataset, params)
+    DT->>Dataset: Transformiert Daten
+    Dataset->>UI: Aktualisierte Daten
+    UI->>User: Zeigt transformierte Daten an
+```
+
+**Abbildung 3:** Sequenzdiagramm für den Datenimport- und Transformationsprozess in DataInspect. Das Diagramm zeigt die Interaktion zwischen dem Benutzer, der Benutzeroberfläche und den verschiedenen Komponenten des Systems während des Imports einer CSV-Datei und der anschließenden Transformation der Daten.
+
+## Sequenzdiagramm: Visualisierungserstellung
+
+```mermaid
+sequenceDiagram
+    actor User as Benutzer
+    participant MC as MainContent
+    participant VCD as VisualizationCreationDialog
+    participant CR as ChartRenderer
+    participant CT as ChartTypes
+    participant DS as DataSource
+    participant V as Visualization
+    participant P as Project
+
+    User->>MC: Klick auf "Visualisierung erstellen"
+    MC->>MC: on_create_visualization()
+    MC->>VCD: Erstelle VisualizationCreationDialog
+    VCD->>VCD: Initialisiere Dialog mit Datenquelle
+    VCD-->>User: Zeige Dialog mit Optionen
+
+    User->>VCD: Wähle Visualisierungstyp
+    VCD->>VCD: update_chart_type_options()
+    VCD->>VCD: update_preview()
+
+    User->>VCD: Wähle X-Achse
+    User->>VCD: Wähle Y-Achse(n)
+    VCD->>VCD: update_preview()
+    VCD->>CR: render_preview(dataset, config, chart_type)
+    CR->>CT: Erstelle Chart-Objekt
+    CT->>CT: render()
+    CT-->>CR: Figure
+    CR-->>VCD: Figure
+    VCD-->>User: Zeige Vorschau
+
+    User->>VCD: Konfiguriere Filter/Transformationen
+    VCD->>VCD: update_preview()
+    VCD->>CR: render_preview(dataset, config, chart_type)
+    CR-->>VCD: Figure
+    VCD-->>User: Zeige aktualisierte Vorschau
+
+    User->>VCD: Klick auf "Speichern"
+    VCD->>VCD: get_visualization()
+    VCD->>V: Erstelle Visualization
+    VCD-->>MC: Rückgabe der Visualization
+    MC->>DS: add_visualization(visualization)
+    MC->>P: notify_observers()
+    P-->>MC: Aktualisiere UI
+    MC->>User: Zeige erstellte Visualisierung
+```
+
+**Abbildung 4:** Sequenzdiagramm für den Visualisierungserstellungsprozess in DataInspect. Das Diagramm zeigt die Interaktion zwischen dem Benutzer, der MainContent-Komponente, dem VisualizationCreationDialog und anderen Komponenten während der Erstellung einer Visualisierung. Der Benutzer wählt einen Visualisierungstyp, konfiguriert die X- und Y-Achsen sowie Filter und Transformationen, wobei die Vorschau automatisch aktualisiert wird. Nach dem Speichern wird die Visualisierung zur DataSource hinzugefügt und in der Benutzeroberfläche angezeigt.
+
+*Erstellt mit: Mermaid.js Diagramming Tool (Version 9.4.3)*
 
 ---
 
@@ -283,58 +395,183 @@ DataInspect kommuniziert mit verschiedenen externen Systemen und Datenquellen ü
 
 ---
 
-## Benutzerschnittstellen
-DataInspect verfügt über eine grafische Benutzeroberfläche, die auf Benutzerfreundlichkeit und Intuitivität ausgelegt ist. Im Folgenden werden die wichtigsten Dialogelemente beschrieben:
+## Komponentendiagramm: Systemarchitektur
 
-### Hauptfenster
-Das Hauptfenster ist das zentrale Element der Anwendung und besteht aus mehreren Bereichen:
-- **Menüleiste:** Enthält Hauptmenüs für Datei, Bearbeiten, Ansicht, Daten, Visualisierung und Hilfe
-- **Werkzeugleiste:** Bietet schnellen Zugriff auf häufig verwendete Funktionen
-- **Datenverwaltungsbereich (linke Seitenleiste):** Zeigt verfügbare Datenquellen, Datensätze und Visualisierungen hierarchisch an
-- **Hauptarbeitsbereich (zentral):** Zeigt je nach Kontext die aktuelle Datenvorschau oder Visualisierung
-- **Eigenschaftenbereich (rechte Seitenleiste):** Zeigt Eigenschaften des aktuell ausgewählten Elements und ermöglicht Anpassungen
-- **Statusleiste:** Zeigt Informationen zum aktuellen Status der Anwendung und laufenden Operationen
+```mermaid
+flowchart TB
+    subgraph UI["Benutzeroberfläche (GUI)"]
+        MainWindow["MainWindow"]
+        Dialogs["Dialoge"]
+        Widgets["Widgets"]
+    end
 
-### Dialog: Datenimport
-Der Datenimport-Dialog wird geöffnet, wenn der Nutzer neue Daten importieren möchte:
-- **Dateityp-Auswahl:** Dropdown-Menü zur Auswahl des zu importierenden Dateityps (CSV, Excel, JSON)
-- **Dateiauswahl:** Datei-Browser zur Auswahl der zu importierenden Datei
-- **Vorschaubereich:** Zeigt eine Vorschau der zu importierenden Daten
-- **Importoptionen:** Spezifische Optionen je nach Dateityp (z.B. Trennzeichen für CSV)
-- **Schaltflächen:** "Importieren", "Abbrechen"
+    subgraph Models["Datenmodelle"]
+        Project["Project"]
+        DataSource["DataSource"]
+        Dataset["Dataset"]
+        Column["Column"]
+        Visualization["Visualization"]
+    end
 
-### Dialog: Diagrammerstellung
-Der Diagrammerstellungs-Dialog wird verwendet, um neue Visualisierungen zu erstellen:
-- **Diagrammtyp-Auswahl:** Visuelle Auswahl der verfügbaren Diagrammtypen mit Miniaturansichten
-- **Spaltenzuordnung:** Drag-and-Drop-Bereich zur Zuordnung von Datenspalten zu Diagrammelementen (X-Achse, Y-Achse, Farbe, Größe, etc.)
-- **Diagrammvorschau:** Live-Vorschau des aktuell konfigurierten Diagramms
-- **Anpassungsoptionen:** Einstellungen für Farben, Beschriftungen, Skalen, etc.
-- **Schaltflächen:** "Erstellen", "Abbrechen"
+    subgraph Data["Datenverarbeitung"]
+        Importers["Importers"]
+        Transformations["Transformations"]
+        Statistics["Statistics"]
+    end
 
-### Dialog: Exportoptionen *(geplante Funktionalität)*
-Der Export-Dialog ermöglicht die Konfiguration des Exports:
-- **Format-Auswahl:** Auswahl des Exportformats (PNG, JPEG, PDF)
-- **Größeneinstellungen:** Eingabefelder für Breite und Höhe der Ausgabe
-- **Qualitätseinstellungen:** Schieberegler für Qualität/Kompression (bei JPEG)
-- **Optionen:** Zusätzliche formatspezifische Optionen
-- **Vorschau:** Vorschau des zu exportierenden Elements
-- **Schaltflächen:** "Exportieren", "Abbrechen"
+    subgraph Visualization["Visualisierung"]
+        ChartRenderers["ChartRenderers"]
+        ColorSchemes["ColorSchemes"]
+        Formatters["Formatters"]
+    end
+
+    subgraph Storage["Datenspeicherung"]
+        ProjectStore["ProjectStore"]
+        Serialization["Serialization"]
+    end
+
+    UI <--> Models
+    Models <--> Data
+    Models <--> Visualization
+    Models <--> Storage
+    UI <--> Visualization
+```
+
+**Abbildung 5:** Komponentendiagramm der Systemarchitektur von DataInspect. Das Diagramm zeigt die Hauptkomponenten des Systems und ihre Beziehungen. Die Benutzeroberfläche (GUI) interagiert mit den Datenmodellen, die wiederum mit der Datenverarbeitung, Visualisierung und Datenspeicherung verbunden sind.
+
+*Erstellt mit: Mermaid.js Diagramming Tool (Version 9.4.3)*
 
 ---
 
-## Dialogflüsse
-Die Hauptdialogflüsse in der Anwendung sind:
-1. **Datenimport-Fluss:** Hauptfenster → Menü "Datei" → "Daten importieren" → Datenimport-Dialog → Dateiauswahl → Importoptionen anpassen → Vorschau prüfen → "Importieren" → Hauptfenster (mit importierten Daten)
-2. **Visualisierungserstellungs-Fluss:** Hauptfenster → Menü "Visualisierung" → "Neue Visualisierung" → Diagrammerstellungs-Dialog → Diagrammtyp auswählen → Spalten zuordnen → Anpassungen vornehmen → "Erstellen" → Hauptfenster (mit neuer Visualisierung)
-3. **Export-Fluss:** *(geplante Funktionalität)* Hauptfenster (mit ausgewählter Visualisierung) → Menü "Datei" → "Exportieren" → Exportoptionen-Dialog → Format und Optionen wählen → "Exportieren" → Datei-Browser (zur Speicherortwahl) → Hauptfenster
+## Verwendete Software für Diagramme
+
+Alle Diagramme in der Dokumentation wurden mit dem folgenden Tool erstellt:
+
+1. **Mermaid.js (Version 9.4.3)**
+   - Webbasiertes Diagramm-Tool für die Erstellung von UML-Diagrammen
+   - Verwendet Markdown-ähnliche Syntax zur Definition von Diagrammen
+   - Integriert in die Markdown-Dokumentation
+   - Website: [https://mermaid.js.org/](https://mermaid.js.org/)
+
+2. **Visual Studio Code mit Mermaid-Erweiterung**
+   - Verwendung der Mermaid-Erweiterung für die Vorschau und Bearbeitung der Diagramme
+   - Ermöglicht Live-Vorschau während der Bearbeitung
+
+Die Verwendung von Mermaid.js bietet mehrere Vorteile:
+- Textbasierte Definition von Diagrammen, die gut mit Versionskontrollsystemen wie Git funktioniert
+- Einfache Integration in Markdown-Dokumente
+- Konsistentes Erscheinungsbild aller Diagramme
+- Möglichkeit zur automatischen Generierung von Diagrammen aus Code oder Daten
+
+Hinweis: Aus Zeitgründen wurden keine separaten Mockups der Benutzeroberfläche erstellt. Die UI-Entwicklung erfolgte direkt im Code mit PyQt6.
 
 ---
 
-## Eingabevalidierung
-Die Anwendung validiert Benutzereingaben nach folgenden Regeln:
-- **Dateinamen:** Müssen gültige Dateipfade ohne unerlaubte Zeichen sein
-- **Numerische Eingaben:** Müssen gültige Zahlen im erlaubten Bereich sein
-- **Textfelder:** Dürfen keine leeren Werte haben, wenn sie erforderlich sind
-- **Formatierungsangaben:** Müssen syntaktisch korrekt sein (z.B. Datumsformate)
+## Dokumentation der Änderungen an der Spezifikation
 
-Bei ungültigen Eingaben werden dem Benutzer klare Fehlermeldungen angezeigt, die das Problem und mögliche Lösungen beschreiben.
+### Übersicht der Änderungen
+
+Im Laufe der Implementierung wurden einige Anpassungen an der ursprünglichen Spezifikation vorgenommen, um die Anwendung robuster, benutzerfreundlicher und wartbarer zu gestalten. Diese Änderungen betreffen hauptsächlich das Datenmodell und die Beziehungen zwischen den Hauptkomponenten.
+
+### Datenmodell-Änderungen
+
+#### 1. Beziehung zwischen DataSource und Dataset
+
+**Ursprüngliche Spezifikation:**
+- Eine DataSource konnte mit mehreren Datasets verknüpft sein (1:n-Beziehung)
+- Datasets waren direkt mit Project verknüpft
+
+**Neue Implementierung:**
+- Eine DataSource ist mit genau einem Dataset verknüpft (1:1-Beziehung)
+- Nach dem Import wird ausschließlich mit den transformierten Daten gearbeitet, ohne Aktualisierungsmöglichkeit zur Originaldatenquelle
+
+**Begründung:**
+- Vermeidung von Inkonsistenzen zwischen Originaldaten und transformierten Daten
+- Klarere Verantwortlichkeiten und einfachere Verwaltung von Beziehungen
+- Intuitiveres Modell für Endbenutzer
+
+#### 2. Hierarchische Struktur für Visualisierungen
+
+**Ursprüngliche Spezifikation:**
+- Visualisierungen waren mit Datasets verknüpft
+- Project hatte direkte Referenzen zu Visualisierungen
+
+**Neue Implementierung:**
+- Visualisierungen sind hierarchisch der DataSource untergeordnet (1:n-Beziehung)
+- Project hat keine direkten Referenzen mehr zu Visualisierungen, sondern nur zu DataSources
+
+**Begründung:**
+- Einheitliche hierarchische Struktur (Project → DataSources → Dataset/Visualizations)
+- Intuitivere Organisation in der UI mit Visualisierungen direkt unter der Datenquelle
+- Direkter Zugriff auf alle Visualisierungen einer Datenquelle
+
+#### 3. Eindeutige IDs für alle Modelobjekte
+
+**Ursprüngliche Spezifikation:**
+- Keine explizite Anforderung für eindeutige IDs
+
+**Neue Implementierung:**
+- Alle Hauptobjekte (Project, DataSource, Visualization) haben eindeutige UUIDs
+
+**Begründung:**
+- Einfache und eindeutige Identifikation von Objekten
+- Zuverlässige Identifikation auch nach Umbenennungen
+- Vorbereitung für mögliche zukünftige Funktionen wie Versionierung oder Synchronisation
+
+#### 4. Erweiterte Column-Klasse
+
+**Ursprüngliche Spezifikation:**
+- Grundlegende Spaltenattribute waren definiert, aber keine Details zur Typbestimmung
+
+**Neue Implementierung:**
+- Automatische Erkennung und Klassifizierung von Datentypen (numerisch, Text, Datum, kategorisch)
+- Berechnung statistischer Kennzahlen wie Min, Max, Mittelwert, Median, Standardabweichung
+- Speicherung von Metadaten und statistischen Informationen
+
+**Begründung:**
+- Keine manuelle Typzuweisung erforderlich
+- Bessere Standardeinstellungen für Visualisierungen basierend auf erkannten Typen
+- Typspezifische statistische Berechnungen
+
+### Prozess-Änderungen
+
+#### 1. Visualisierungserstellungs-Prozess
+
+**Ursprüngliche Spezifikation:**
+- Der Nutzer wählt einen Datensatz aus
+- Die Visualisierung wird mit dem Dataset verknüpft
+
+**Neue Implementierung:**
+- Der Nutzer wählt eine Datenquelle aus
+- Die Visualisierung wird der ausgewählten Datenquelle zugeordnet
+
+**Begründung:**
+- Konsistenz mit der hierarchischen Struktur
+- Intuitivere Benutzerführung
+- Vereinfachte Navigation in der Anwendung
+
+### Technische Herausforderungen und Lösungen
+
+#### 1. Zirkuläre Importe
+
+**Problem:**
+- Bei der Integration der Column-Klasse traten zirkuläre Importprobleme auf
+
+**Lösung:**
+- Die Column-Klasse wurde direkt in die models.py-Datei integriert, anstatt sie als separates Modul zu implementieren
+
+#### 2. Serialisierung von NumPy-Datentypen
+
+**Problem:**
+- NumPy-Datentypen wie int64 sind nicht direkt JSON-serialisierbar
+
+**Lösung:**
+- Implementierung einer speziellen to_json-Methode, die NumPy-Datentypen in Python-Standardtypen konvertiert
+
+### Auswirkungen auf die Benutzeroberfläche
+
+Die Änderungen am Datenmodell haben zu einer klareren und intuitiveren Benutzeroberfläche geführt:
+
+1. **Vereinfachte Navigation:** Die hierarchische Struktur ermöglicht eine einfachere Navigation durch die Daten und Visualisierungen
+2. **Konsistente Darstellung:** Visualisierungen werden immer im Kontext ihrer Datenquelle angezeigt
+3. **Verbesserte Datenanalyse:** Die erweiterte Column-Klasse ermöglicht eine detailliertere Analyse der Daten

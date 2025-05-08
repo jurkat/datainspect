@@ -1,32 +1,25 @@
 sequenceDiagram
     actor User as Benutzer
-    participant MW as MainWindow
-    participant ID as ImportDialog
-    participant CI as CSVImporter
+    participant UI as Benutzeroberfläche
+    participant Importer as CSVImporter
     participant DS as DataSource
-    participant D as Dataset
-    participant C as Column
-    participant P as Project
+    participant DT as DataTransformation
+    participant Dataset as Dataset
 
-    User->>MW: Klick auf "Datenquelle hinzufügen"
-    MW->>MW: on_add_data_source()
-    MW->>User: Öffne Dateiauswahldialog
-    User->>MW: Wähle CSV-Datei
-    MW->>ID: Erstelle ImportDialog
-    ID->>CI: Erstelle CSVImporter
-    CI->>CI: Lade CSV-Vorschau
-    CI-->>ID: Vorschaudaten
-    ID->>User: Zeige Importoptionen und Vorschau
-    User->>ID: Konfiguriere Importoptionen
-    User->>ID: Klick auf "Importieren"
-    ID->>CI: import_data(options)
-    CI->>CI: Verarbeite CSV mit Optionen
-    CI->>DS: Erstelle DataSource
-    CI->>D: Erstelle Dataset
-    D->>C: Erstelle Columns für jede Spalte
-    CI->>DS: Setze dataset
-    ID-->>MW: Rückgabe der DataSource
-    MW->>P: add_data_source(data_source)
-    P->>P: Benachrichtige Observer
-    P-->>MW: Aktualisiere UI
-    MW->>User: Zeige importierte Datenquelle
+    User->>UI: Wählt CSV-Datei aus
+    UI->>Importer: import_file(file_path, options)
+    Importer->>Importer: Datei lesen und validieren
+    Importer->>UI: Vorschau zurückgeben
+    UI->>User: Zeigt Vorschau an
+
+    User->>UI: Bestätigt Import
+    UI->>Importer: import_file(file_path, options, confirm=True)
+    Importer->>DS: Erstellt neue DataSource
+    Importer->>Dataset: Erstellt neues Dataset
+    DS->>Dataset: Verknüpft Dataset
+
+    User->>UI: Wählt Transformation
+    UI->>DT: apply(dataset, params)
+    DT->>Dataset: Transformiert Daten
+    Dataset->>UI: Aktualisierte Daten
+    UI->>User: Zeigt transformierte Daten an

@@ -1,65 +1,91 @@
 classDiagram
-    direction LR
-
-    Project "1" --> "*" DataSource
-    DataSource "1" --> "1" Dataset
-    DataSource "1" --> "*" Visualization
-    Dataset "1" --> "*" Column
+    class Project {
+        +String name
+        +DateTime created
+        +DateTime modified
+        +List~DataSource~ data_sources
+        +Path file_path
+        +String id
+        +Dict _last_saved_state
+        +bool _collections_modified
+        +bool has_unsaved_changes
+        +add_data_source(DataSource)
+        +remove_data_source(DataSource)
+        +clear_data_sources()
+        +get_data_source_by_id(String)
+        +get_visualization_by_id(String)
+        +notify_observers()
+    }
 
     class DataSource {
-        -id: String
-        -name: String
-        -sourceType: String
-        -filePath: Path
-        -createdAt: DateTime
-        +addVisualization(visualization)
-        +removeVisualization(id)
+        +String name
+        +String source_type
+        +Path file_path
+        +DateTime created_at
+        +String id
+        +Dataset dataset
+        +List~Visualization~ visualizations
+        +add_visualization(Visualization)
+        +remove_visualization(String)
+        +get_visualization_by_id(String)
     }
 
     class Dataset {
-        -data: DataFrame
-        -columns: Column[]
-        -metadata: Object
-        -createdAt: DateTime
-        -modifiedAt: DateTime
-        +getColumnByName(name)
-        +getColumnTypes()
-        +generateMetadata()
-        +toJson()
-        +fromJson(jsonData)
+        +DataFrame data
+        +Dict metadata
+        +List~Column~ columns
+        +get_column(name)
+        +add_column(Column)
+        +remove_column(name)
     }
 
     class Column {
-        -name: String
-        -dataType: String
-        -originalType: String
-        -stats: Object
-        -metadata: Object
-        +fromSeries(name, series)
-        +getSummary()
+        +String name
+        +String data_type
+        +String original_type
+        +Dict stats
+        +Dict metadata
+        +from_series(name, series)
+        +get_summary()
     }
 
     class Visualization {
-        -id: String
-        -name: String
-        -chartType: String
-        -config: Object
-        -createdAt: DateTime
-        -modifiedAt: DateTime
+        +String name
+        +String chart_type
+        +Dict config
+        +DateTime created_at
+        +DateTime modified_at
+        +String id
         +render()
-        +toJson()
-        +fromJson(jsonData)
+        +update_config(config)
     }
 
-    class Project {
-        -id: String
-        -name: String
-        -created: DateTime
-        -modified: DateTime
-        -dataSources: DataSource[]
-        -filePath: Path
-        +addDataSource(dataSource)
-        +removeDataSource(dataSource)
-        +hasUnsavedChanges()
-        +markAsSaved(state)
+    class Observable {
+        <<interface>>
+        +add_observer(Observer)
+        +remove_observer(Observer)
+        +notify_observers()
     }
+
+    class Observer {
+        <<interface>>
+        +update(Observable)
+    }
+
+    class CSVImporter {
+        +import_file(file_path, options)
+        +generate_preview(file_path, options)
+    }
+
+    class DataTransformation {
+        +apply(data, params)
+        +validate(params)
+    }
+
+    Project --|> Observable
+    Project "1" o-- "*" DataSource
+    DataSource "1" o-- "1" Dataset
+    DataSource "1" o-- "*" Visualization
+    Dataset "1" o-- "*" Column
+    CSVImporter --> DataSource : creates
+    DataTransformation --> Dataset : modifies

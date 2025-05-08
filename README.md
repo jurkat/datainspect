@@ -6,6 +6,12 @@ Eine Desktop-Anwendung zur Datenvisualisierung, entwickelt mit Python und PyQt6.
 
 DataInspect ermöglicht den Import, die grundlegende Vorverarbeitung und die Visualisierung von Daten. Die Anwendung bietet eine intuitive Benutzeroberfläche für die Analyse und Präsentation von Daten durch verschiedene Diagrammtypen.
 
+Die Anwendung richtet sich primär an Studierende, Fachleute in Unternehmen und Datenanalysten, die eine kostengünstige und benutzerfreundliche Alternative zu teuren Visualisierungstools suchen. Mit DataInspect können Nutzer schnell und einfach Daten importieren, transformieren und visualisieren, ohne umfangreiche Programmierkenntnisse zu benötigen.
+
+### Architektur
+
+DataInspect verwendet eine Kombination aus Model-View-Controller (MVC) und Model-View-ViewModel (MVVM) Architekturstilen, was eine klare Trennung von Daten, Logik und Präsentation ermöglicht. Die Anwendung ist modular aufgebaut und kann leicht um weitere Funktionalitäten erweitert werden.
+
 ## Systemanforderungen
 
 - **Betriebssystem:** Windows 10/11, macOS oder Linux
@@ -124,23 +130,41 @@ Diese Datensätze eignen sich zum Testen verschiedener Import- und Transformatio
 ## Implementierte Features
 
 - **Datenimport:**
-  - CSV-Import mit Konfigurationsoptionen
+  - CSV-Import mit umfangreichen Konfigurationsoptionen
   - Vorschaufunktion für CSV-Daten
-  - Unterstützung für verschiedene Trennzeichen und Dateiformate
+  - Automatische Erkennung von Trennzeichen
+  - Unterstützung für verschiedene Kodierungen und Zahlenformate
 
 - **Datenvorverarbeitung:**
   - Transformationen während des Imports
-  - Behandlung fehlender Werte
-  - Typkonvertierungen
+  - Behandlung fehlender Werte (Entfernen, Ersetzen durch Konstanten oder berechnete Werte)
+  - Typkonvertierungen (Text zu Zahl, Datum, etc.)
+  - Spaltenumbenennungen und -formatierungen
 
 - **Visualisierung:**
-  - Verschiedene Diagrammtypen
+  - Verschiedene Diagrammtypen (Balken, Linien, Kreis, Streu, Heatmap)
   - Anpassung von Achsen, Titeln und Farben
-  - Vorschau von Visualisierungen
+  - Vorschau von Visualisierungen während der Erstellung
+  - Speichern und Bearbeiten von Visualisierungen
 
 - **Projektmanagement:**
-  - Speichern und Laden von Projekten
+  - Speichern und Laden von Projekten im JSON-Format
   - Hierarchische Struktur für Datenquellen und Visualisierungen
+  - Erkennung ungespeicherter Änderungen
+  - Automatische UI-Aktualisierung bei Änderungen am Datenmodell (Observer-Pattern)
+
+- **Benutzeroberfläche:**
+  - Intuitive, moderne Benutzeroberfläche
+  - Drag-and-Drop-Unterstützung für Projektdateien
+  - Tabellarische Darstellung von Daten mit Statistiken
+  - Dunkles Farbschema für angenehmes Arbeiten
+
+## Bekannte Einschränkungen
+
+- Aktuell wird nur der Import von CSV-Dateien unterstützt. Die Architektur ist jedoch für die Erweiterung um weitere Formate (Excel, JSON) vorbereitet.
+- Die Exportfunktion für Visualisierungen als Bild oder PDF ist noch nicht implementiert.
+- Die Filterung und Gruppierung von Daten nach dem Import ist noch nicht implementiert.
+- Die Anwendung ist für mittelgroße Datensätze optimiert. Bei sehr großen Datensätzen (>100.000 Zeilen) kann die Performance beeinträchtigt sein.
 
 ## Entwicklung und Tests
 
@@ -149,7 +173,10 @@ Diese Datensätze eignen sich zum Testen verschiedener Import- und Transformatio
 Das Projekt verwendet:
 - **Pyright:** Für statische Typprüfung
 - **pytest:** Für Unit-Tests
+- **pytest-cov:** Für Test-Coverage-Analyse
 - **autoflake:** Für das Entfernen ungenutzter Importe und Variablen
+- **isort:** Für die Sortierung von Importen
+- **black:** Für die Formatierung des Codes
 
 ### Tests ausführen
 
@@ -173,4 +200,27 @@ Das Projekt enthält ein Skript zur Code-Bereinigung:
 sh cleanup.sh
 ```
 
-Dieses Skript entfernt ungenutzte Importe und Variablen und führt eine statische Typprüfung durch.
+Dieses Skript führt folgende Aktionen aus:
+- Entfernen ungenutzter Importe und Variablen mit autoflake
+- Sortieren von Importen mit isort
+- Formatieren des Codes mit black
+- Statische Typprüfung mit pyright
+
+## Dokumentation
+
+Die vollständige Dokumentation des Projekts befindet sich im Ordner `docs/` und umfasst:
+
+- **Anforderungsdokument:** Beschreibung der funktionalen und nichtfunktionalen Anforderungen
+- **Spezifikationsdokument:** Detaillierte Spezifikation der Anwendung
+- **Architekturdokument:** Beschreibung der Softwarearchitektur und des Datenmodells
+- **Testdokument:** Beschreibung der Teststrategie und Testprotokolle
+- **Benutzeranleitung:** Anleitung zur Installation und Verwendung der Anwendung
+- **Abstract:** Zusammenfassung des Projekts, "Making-of" und kritische Reflexion
+
+## Lizenz
+
+Dieses Projekt ist unter der MIT-Lizenz lizenziert. Siehe die Datei `LICENSE` für Details.
+
+## Kontakt
+
+Bei Fragen oder Anregungen können Sie ein Issue im GitHub-Repository erstellen oder sich direkt an den Autor wenden.

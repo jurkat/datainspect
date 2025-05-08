@@ -1,35 +1,27 @@
-flowchart TB
-    %% Vorbereitung
+flowchart TD
     Start([Start]) --> A[Datenquelle auswählen]
-    A --> B[Diagrammtyp auswählen]
-    B --> C[Vorschau anzeigen]
-    C --> D[Spalten für Achsen wählen]
-    D --> E{Standardoptionen OK?}
+    A --> C[CSV-Datei auswählen]
+    C --> E[Importoptionen konfigurieren]
+    E --> F[Vorschau generieren]
+    F --> G{Vorschau OK?}
+    G -->|Nein| E
+    G -->|Ja| H[Daten importieren]
 
-    %% Kompakte Anpassungsprozesse
-   F[Optionen anpassen] --> G[Visualisierung rendern]
-   J[Weitere Anpassungen] --> G
-   G --> H{Mit Ergebnis zufrieden?}
-   H -->|Nein| J
+    H --> J[Visualisierungstyp auswählen]
+    J --> K[Visualisierungsparameter konfigurieren]
+    K --> I[Daten filtern/transformieren]
+    I --> L[Vorschau wird automatisch aktualisiert]
+    L --> M{Ergebnis OK?}
+    M -->|Nein| K
+    M -->|Ja| N[Visualisierung speichern]
+    N --> O[Visualisierung anzeigen]
+    O --> Ende([Ende])
 
-    %% Hauptflussverbindungen
-    E -->|Nein| F
-    E -->|Ja| G
-    H -->|Ja| I[Visualisierung speichern]
-
-    %% Export-Entscheidung (geplante Funktionalität)
-    I --> K{Exportieren?}
-    K -->|Ja| L[Export starten]
-    K -->|Nein| Ende([Ende])
-    L --> Ende
-
-    %% Visuelle Hinweise zur Gruppierung
+    %% Visuelle Hinweise zur Gruppierung mit Farben aus dem Screenshot
     classDef vorbereitung fill:#e1f5fe,stroke:#01579b
     classDef anpassung fill:#e8f5e9,stroke:#2e7d32
     classDef abschluss fill:#fff3e0,stroke:#ff6f00
-    classDef planned fill:#f8f9fa,stroke:#6c757d,stroke-dasharray: 5 5
 
-    class A,B,C,D,E vorbereitung
-    class F,G,H,J anpassung
-    class I abschluss
-    class K,L,Ende planned
+    class A,C,E,F,G vorbereitung
+    class H,J,K,I,L,M anpassung
+    class N,O,Ende abschluss

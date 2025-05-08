@@ -205,7 +205,7 @@ sequenceDiagram
     participant D as Dataset
     participant C as Column
     participant P as Project
-    
+
     User->>MW: Klick auf "Datenquelle hinzufügen"
     MW->>MW: on_add_data_source()
     MW->>User: Öffne Dateiauswahldialog
@@ -230,36 +230,86 @@ sequenceDiagram
     MW->>User: Zeige importierte Datenquelle
 ```
 
-## Design-Entscheidungen und Begründungen
+**Abbildung 1:** Sequenzdiagramm des CSV-Import-Prozesses, das die Interaktionen zwischen Benutzer, UI-Komponenten und Datenmodell-Klassen darstellt.
+
+## Besondere Herausforderungen und Lösungen
+
+### Zirkuläre Importe
+- **Problem:** Bei der Integration der Column-Klasse traten zirkuläre Importprobleme auf
+- **Lösung:** Die Column-Klasse wurde direkt in die models.py-Datei integriert, anstatt sie als separates Modul zu implementieren
+
+### Serialisierung von NumPy-Datentypen
+- **Problem:** NumPy-Datentypen wie int64 sind nicht direkt JSON-serialisierbar
+- **Lösung:** Implementierung einer speziellen to_json-Methode, die NumPy-Datentypen in Python-Standardtypen konvertiert
+
+### Tracking von Änderungen
+- **Problem:** Erkennung ungespeicherter Änderungen in verschachtelten Objektstrukturen
+- **Lösung:** Implementierung einer _TrackingList-Klasse und eines Callback-Mechanismus, um Änderungen an Collections zu verfolgen
+
+### Automatische UI-Aktualisierung
+- **Problem:** Synchronisierung der UI mit dem Datenmodell bei Änderungen
+- **Lösung:** Implementierung des Observer-Patterns mit spezifischen Events für verschiedene Änderungstypen
+
+## Wichtige Kompromisse und Begründungen
 
 ### 1:1-Beziehung zwischen DataSource und Dataset
-- **Ursprüngliche Spezifikation:** Die ursprüngliche Spezifikation ließ eine 1:n-Beziehung zwischen DataSource und Dataset zu
-- **Implementierung:** Eine strikte 1:1-Beziehung wurde implementiert
-- **Begründung:**
-  - **Datenintegrität:** Vermeidung von Inkonsistenzen zwischen Originaldaten und transformierten Daten
-  - **Vereinfachte Architektur:** Klarere Verantwortlichkeiten und einfachere Verwaltung von Beziehungen
-  - **Benutzerfreundlichkeit:** Intuitiveres Modell für Endbenutzer, da jede Datenquelle genau einen Datensatz hat
+- **Trade-off:** Einschränkung der Flexibilität zugunsten von Einfachheit und Konsistenz
+- **Begründung:** Vermeidung von Inkonsistenzen zwischen Originaldaten und transformierten Daten, klarere Verantwortlichkeiten und intuitiveres Modell für Endbenutzer
 
-### Hierarchische Struktur für Visualisierungen
-- **Ursprüngliche Spezifikation:** Visualisierungen waren mit Datasets verknüpft
-- **Implementierung:** Visualisierungen sind jetzt hierarchisch der DataSource untergeordnet
-- **Begründung:**
-  - **Konsistenz:** Einheitliche hierarchische Struktur (Project → DataSources → Dataset/Visualizations)
-  - **Benutzerfreundlichkeit:** Intuitivere Organisation in der UI mit Visualisierungen direkt unter der Datenquelle
-  - **Einfachere Navigation:** Direkter Zugriff auf alle Visualisierungen einer Datenquelle
+### JSON statt binärer Formate für Persistenz
+- **Trade-off:** Größere Dateien und langsamere Serialisierung/Deserialisierung zugunsten von Lesbarkeit und Debugbarkeit
+- **Begründung:** Menschenlesbarkeit, einfaches Debugging und flexible Erweiterbarkeit sind wichtiger als optimale Performance bei der Persistenz
 
-### Eindeutige IDs für alle Modelobjekte
-- **Ursprüngliche Spezifikation:** Keine explizite Anforderung für eindeutige IDs
-- **Implementierung:** Alle Hauptobjekte (Project, DataSource, Visualization) haben eindeutige UUIDs
-- **Begründung:**
-  - **Programmatische Ansteuerung:** Einfache und eindeutige Identifikation von Objekten
-  - **Persistenz:** Zuverlässige Identifikation auch nach Umbenennungen
-  - **Zukunftssicherheit:** Vorbereitung für mögliche zukünftige Funktionen wie Versionierung oder Synchronisation
+### Automatische Typbestimmung statt manueller Konfiguration
+- **Trade-off:** Möglicherweise weniger Kontrolle für Experten zugunsten von Benutzerfreundlichkeit
+- **Begründung:** Keine manuelle Typzuweisung erforderlich, bessere Standardeinstellungen für Visualisierungen und typspezifische statistische Berechnungen
 
-### Automatische Typbestimmung in Column-Klasse
-- **Ursprüngliche Spezifikation:** Grundlegende Spaltenattribute waren definiert, aber keine Details zur Typbestimmung
-- **Implementierung:** Automatische Erkennung und Klassifizierung von Datentypen (numerisch, Text, Datum, kategorisch)
-- **Begründung:**
-  - **Benutzerfreundlichkeit:** Keine manuelle Typzuweisung erforderlich
-  - **Intelligente Vorverarbeitung:** Bessere Standardeinstellungen für Visualisierungen basierend auf erkannten Typen
-  - **Statistische Analyse:** Typspezifische statistische Berechnungen
+### Hierarchische Struktur statt flacher Struktur
+- **Trade-off:** Einschränkung der Flexibilität zugunsten von Klarheit und einfacherer Navigation
+- **Begründung:** Einheitliche hierarchische Struktur, intuitivere Organisation in der UI und direkter Zugriff auf alle Visualisierungen einer Datenquelle
+
+## Aktueller Implementierungsstatus
+
+### Bereits implementierte Funktionalitäten
+1. **Datenimport:**
+   - CSV-Import mit umfangreichen Konfigurationsoptionen
+   - Automatische Erkennung von Trennzeichen
+   - Vorschaufunktion für CSV-Daten
+   - Validierung der importierten Daten
+
+2. **Datenmodell:**
+   - Vollständige Implementierung der Project-, DataSource-, Dataset-, Column- und Visualization-Klassen
+   - Hierarchische Struktur mit 1:1-Beziehung zwischen DataSource und Dataset
+   - Eindeutige IDs für alle Modelobjekte
+   - Serialisierung und Deserialisierung in JSON
+
+3. **Benutzeroberfläche:**
+   - Hauptfenster mit hierarchischer Darstellung der Datenquellen und Visualisierungen
+   - CSV-Import-Dialog mit Konfigurationsoptionen und Transformationen
+   - Visualisierungserstellung mit Vorschau
+   - Datenvorschau beim Klicken auf eine Quelle
+   - Verbesserte Darstellung im Dark Mode
+
+4. **Projektmanagement:**
+   - Speichern und Laden von Projekten
+   - Erkennung ungespeicherter Änderungen
+   - Automatische UI-Aktualisierung bei Änderungen am Datenmodell
+
+### Ausstehende Funktionalitäten
+1. **Datenimport:**
+   - Excel- und JSON-Import
+   - Direkte Dateneingabe
+
+2. **Datenvorverarbeitung:**
+   - Dedizierte UI für Filterung, Sortierung und Gruppierung
+   - Erweiterte Transformationen nach dem Import
+   - Speichern und Laden von Transformationskonfigurationen
+
+3. **Visualisierung:**
+   - Implementierung weiterer Anpassungsoptionen für Diagramme
+   - Interaktive Elemente (Zoom, Hover-Effekte)
+   - Erweiterte Filterung direkt in Visualisierungen
+
+4. **Export:**
+   - Export als Bild oder PDF
+   - Konfigurationsoptionen für den Export
